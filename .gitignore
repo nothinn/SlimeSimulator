@@ -1,0 +1,11 @@
+.bsp
+.metals
+.vscode
+project
+target
+.bloop
+
+output
+test_run_dir
+
+SlimeSimulatorArticle.pdf
