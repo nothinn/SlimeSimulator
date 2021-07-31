@@ -5,8 +5,6 @@ import chisel3.util._
 import chisel3.experimental.ChiselEnum
 
 
-import Memory._
-
 import chisel3.stage.ChiselStage
 
 class Slime extends Module {
