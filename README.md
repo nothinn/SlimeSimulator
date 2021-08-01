@@ -1,5 +1,8 @@
 # Slime Simulator
 
+![Main branch workflow](https://github.com/nothinn/SlimeSimulator/actions/workflows/scala.yml/Badge.svg)
+
+
 This repo attempts to create a real-time slime simulation running on an FPGA.
 
 The original idea was from the YouTube video of Sebastian Lague: https://www.youtube.com/watch?v=X-iSQQgOd1A.
