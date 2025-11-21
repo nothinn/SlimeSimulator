@@ -6,6 +6,12 @@ target
 .bloop
 
 output
+output_images
+output_center
+output_test*
 test_run_dir
+venv
+__pycache__
+*.pyc
 
 SlimeSimulatorArticle.pdf
