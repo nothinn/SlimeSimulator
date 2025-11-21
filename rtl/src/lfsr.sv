@@ -22,35 +22,36 @@ module lfsr #(
     logic feedback;
 
     // Generate feedback based on width
+    // Python taps are 1-indexed from MSB, so tap N = bit[WIDTH-N]
     // These match the Python LFSR.TAPS exactly
     generate
         if (WIDTH == 8) begin : gen_8bit
-            // Taps: 8, 6, 5, 4
-            assign feedback = lfsr_reg[7] ^ lfsr_reg[5] ^ lfsr_reg[4] ^ lfsr_reg[3];
+            // Taps: 8, 6, 5, 4 -> bits 0, 2, 3, 4
+            assign feedback = lfsr_reg[0] ^ lfsr_reg[2] ^ lfsr_reg[3] ^ lfsr_reg[4];
         end
         else if (WIDTH == 16) begin : gen_16bit
-            // Taps: 16, 15, 13, 4
-            assign feedback = lfsr_reg[15] ^ lfsr_reg[14] ^ lfsr_reg[12] ^ lfsr_reg[3];
+            // Taps: 16, 15, 13, 4 -> bits 0, 1, 3, 12
+            assign feedback = lfsr_reg[0] ^ lfsr_reg[1] ^ lfsr_reg[3] ^ lfsr_reg[12];
         end
         else if (WIDTH == 24) begin : gen_24bit
-            // Taps: 24, 23, 22, 17
-            assign feedback = lfsr_reg[23] ^ lfsr_reg[22] ^ lfsr_reg[21] ^ lfsr_reg[16];
+            // Taps: 24, 23, 22, 17 -> bits 0, 1, 2, 7
+            assign feedback = lfsr_reg[0] ^ lfsr_reg[1] ^ lfsr_reg[2] ^ lfsr_reg[7];
         end
         else if (WIDTH == 32) begin : gen_32bit
-            // Taps: 32, 22, 2, 1
-            assign feedback = lfsr_reg[31] ^ lfsr_reg[21] ^ lfsr_reg[1] ^ lfsr_reg[0];
+            // Taps: 32, 22, 2, 1 -> bits 0, 10, 30, 31
+            assign feedback = lfsr_reg[0] ^ lfsr_reg[10] ^ lfsr_reg[30] ^ lfsr_reg[31];
         end
         else if (WIDTH == 48) begin : gen_48bit
-            // Taps: 48, 47, 21, 20
-            assign feedback = lfsr_reg[47] ^ lfsr_reg[46] ^ lfsr_reg[20] ^ lfsr_reg[19];
+            // Taps: 48, 47, 21, 20 -> bits 0, 1, 27, 28
+            assign feedback = lfsr_reg[0] ^ lfsr_reg[1] ^ lfsr_reg[27] ^ lfsr_reg[28];
         end
         else if (WIDTH == 64) begin : gen_64bit
-            // Taps: 64, 63, 61, 60
-            assign feedback = lfsr_reg[63] ^ lfsr_reg[62] ^ lfsr_reg[60] ^ lfsr_reg[59];
+            // Taps: 64, 63, 61, 60 -> bits 0, 1, 3, 4
+            assign feedback = lfsr_reg[0] ^ lfsr_reg[1] ^ lfsr_reg[3] ^ lfsr_reg[4];
         end
         else begin : gen_default
             // Default to 32-bit
-            assign feedback = lfsr_reg[31] ^ lfsr_reg[21] ^ lfsr_reg[1] ^ lfsr_reg[0];
+            assign feedback = lfsr_reg[0] ^ lfsr_reg[10] ^ lfsr_reg[30] ^ lfsr_reg[31];
         end
     endgenerate
 
