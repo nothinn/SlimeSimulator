@@ -14,4 +14,11 @@ venv
 __pycache__
 *.pyc
 
+# RTL simulation outputs
+rtl/sim/sim_build
+rtl/sim/*.vcd
+rtl/sim/results.xml
+*.vcd
+dump.vcd
+
 SlimeSimulatorArticle.pdf
