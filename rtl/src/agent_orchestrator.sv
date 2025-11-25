@@ -104,7 +104,7 @@ module agent_orchestrator #(
 
                     // Deposit trail at current position
                     trail_addr_b <= (agent_y >>> FP_FRAC_BITS) * WIDTH + (agent_x >>> FP_FRAC_BITS);
-                    trail_data_b_in <= (lfsr_state[7:0] + {current_agent[7:0]}) >> 1;
+                    trail_data_b_in <= (lfsr_state[7:0] + {{(8-$clog2(NUM_AGENTS)){1'b0}}, current_agent}) >> 1;
                     trail_we_b <= 1'b1;
 
                     if (current_agent == NUM_AGENTS - 1) begin

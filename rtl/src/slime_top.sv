@@ -279,10 +279,11 @@ module slime_top #(
                 SIM_RUN_AGENTS: begin
                     if (!sim_pause) begin
                         // Write LFSR-generated trail values across entire memory
-                        trail_addr_b <= agent_idx;
+                        // (Note: Now using orchestrator, but keep this for fallback)
+                        sim_trail_addr <= agent_idx;
 
                         // Create organic patterns using LFSR mixed with position for variation
-                        trail_data_b_in <= (lfsr_state[7:0] ^ {agent_idx[7:0]});
+                        sim_trail_data <= (lfsr_state[7:0] ^ {agent_idx[7:0]});
 
                         // Iterate through all memory locations (WIDTH * HEIGHT = 19200)
                         if (agent_idx == (WIDTH * HEIGHT - 1)) begin
@@ -331,8 +332,8 @@ module slime_top #(
     // LFSR enable during agent processing
     assign lfsr_enable = (sim_state == SIM_RUN_AGENTS) && !sim_pause;
 
-    // Trail memory write enable during agent processing
-    assign trail_we_b = (sim_state == SIM_RUN_AGENTS) && !sim_pause;
+    // Trail memory write enable for simple pattern generator
+    assign sim_trail_we = (sim_state == SIM_RUN_AGENTS) && !sim_pause;
 
     // =========================================================================
     // Agent Processor Integration via Orchestrator
@@ -344,21 +345,35 @@ module slime_top #(
     //
     // This bridges to the full agent_processor pipeline for future expansion
 
-    logic [18:0] agent_trail_addr;
-    logic [7:0]  agent_trail_data;
-    logic        agent_trail_we;
-    logic [7:0]  agent_trail_read_data;
+    logic [18:0] orch_trail_addr;
+    logic [7:0]  orch_trail_data;
+    logic        orch_trail_we;
+    logic [7:0]  orch_trail_read_data;
 
-    // Mux between simple pattern generation and agent orchestrator
-    // For now, keep using the simple pattern (SIM_RUN_AGENTS state)
-    // Agent orchestrator can be integrated by switching the mux
-    assign agent_trail_addr = trail_addr_b;
-    assign agent_trail_data = trail_data_b_in;
-    assign agent_trail_we = trail_we_b;
+    logic [18:0] pattern_trail_addr;
+    logic [7:0]  pattern_trail_data;
+    logic        pattern_trail_we;
 
-    // Orchestrator instance (instantiated but not used yet - available for future)
-    // Uncomment to enable full agent-based simulation
-    /*
+    // Outputs from simple pattern state machine (computed internally)
+    logic [18:0] sim_trail_addr;
+    logic [7:0]  sim_trail_data;
+    logic        sim_trail_we;
+
+    assign pattern_trail_addr = sim_trail_addr;
+    assign pattern_trail_data = sim_trail_data;
+    assign pattern_trail_we = sim_trail_we;
+
+    // Mux between simple pattern and agent orchestrator
+    // Use orchestrator when simulation is running
+    logic use_orchestrator;
+    assign use_orchestrator = (sim_state == SIM_RUN_AGENTS) && !sim_pause;
+
+    // Final mux: select between pattern generator and orchestrator
+    assign trail_addr_b = use_orchestrator ? orch_trail_addr : pattern_trail_addr;
+    assign trail_data_b_in = use_orchestrator ? orch_trail_data : pattern_trail_data;
+    assign trail_we_b = use_orchestrator ? orch_trail_we : pattern_trail_we;
+
+    // Orchestrator instance - ENABLED for agent-based simulation
     agent_orchestrator #(
         .NUM_AGENTS(100),
         .FP_INT_BITS(FP_INT_BITS),
@@ -378,11 +393,10 @@ module slime_top #(
         .deposit_amount(DEPOSIT_AMOUNT),
         .done(),
         .lfsr_state(lfsr_state),
-        .trail_addr_b(agent_trail_addr),
-        .trail_data_b_in(agent_trail_data),
-        .trail_we_b(agent_trail_we),
-        .trail_data_b_out(trail_data_b_out)
+        .trail_addr_b(orch_trail_addr),
+        .trail_data_b_in(orch_trail_data),
+        .trail_we_b(orch_trail_we),
+        .trail_data_b_out(orch_trail_read_data)
     );
-    */
 
 endmodule
