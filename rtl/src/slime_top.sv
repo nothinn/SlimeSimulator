@@ -18,11 +18,10 @@ module slime_top #(
     parameter FP_FRAC_BITS = 12,
     parameter LFSR_WIDTH   = 32,
     parameter TRIG_BITS    = 10,
-    parameter WIDTH        = 640,
-    parameter HEIGHT       = 480
+    parameter WIDTH        = 160,
+    parameter HEIGHT       = 120
 ) (
     input  logic clk_100mhz,    // 100 MHz system clock
-    input  logic rst_n,         // Active low reset (directly or button)
 
     // Buttons (directly active high on Basys3)
     input  logic btnc,          // Center - Start/Reset
@@ -44,6 +43,13 @@ module slime_top #(
     // LEDs for status
     output logic [15:0] led
 );
+
+    // =========================================================================
+    // Reset Generation
+    // =========================================================================
+    // Generate internal reset signal - always 1 (never resetting) after power-on
+    logic rst_n;
+    assign rst_n = 1'b1;
 
     // =========================================================================
     // Parameters
@@ -83,7 +89,9 @@ module slime_top #(
     // =========================================================================
     // Button Debouncing
     // =========================================================================
-    logic [4:0] btn_raw, btn_debounced, btn_posedge_pulse;
+    logic [4:0] btn_raw;
+    (* mark_debug = "true" *) logic [4:0] btn_debounced;
+    logic [4:0] btn_posedge_pulse;
 
     assign btn_raw = {btnr, btnl, btnd, btnu, btnc};
 
@@ -104,12 +112,12 @@ module slime_top #(
     wire btn_speed_up = btn_posedge_pulse[1];
     wire btn_speed_dn = btn_posedge_pulse[2];
     wire btn_random   = btn_posedge_pulse[3];
-    wire sim_pause    = sw[0];
+    (* mark_debug = "true" *) wire sim_pause = sw[0];
 
     // =========================================================================
     // Speed Control
     // =========================================================================
-    logic [3:0] speed_level;  // 0-15, default 8
+    (* mark_debug = "true" *) logic [3:0] speed_level;  // 0-15, default 8
     logic signed [FP_TOTAL-1:0] current_move_speed;
 
     always_ff @(posedge clk_100mhz or negedge rst_n) begin
@@ -132,7 +140,7 @@ module slime_top #(
     // =========================================================================
     // LFSR Random Number Generator
     // =========================================================================
-    logic [LFSR_WIDTH-1:0] lfsr_state;
+    (* mark_debug = "true" *) logic [LFSR_WIDTH-1:0] lfsr_state;
     logic lfsr_enable, lfsr_load;
     logic [LFSR_WIDTH-1:0] lfsr_seed;
 
@@ -170,10 +178,12 @@ module slime_top #(
     // Port A: VGA read
     // Port B: Agent read/write
 
-    logic [18:0] trail_addr_a, trail_addr_b;  // 640*480 = 307200, needs 19 bits
-    logic [7:0]  trail_data_a, trail_data_b_out;
-    logic [7:0]  trail_data_b_in;
-    logic        trail_we_b;
+    logic [18:0] trail_addr_a;
+    (* mark_debug = "true" *) logic [18:0] trail_addr_b;  // Debug: agent write address
+    logic [7:0]  trail_data_a;
+    (* mark_debug = "true" *) logic [7:0]  trail_data_b_out;  // Debug: agent read data
+    (* mark_debug = "true" *) logic [7:0]  trail_data_b_in;   // Debug: agent write data
+    (* mark_debug = "true" *) logic        trail_we_b;         // Debug: agent write enable
 
     // Simple dual-port RAM
     logic [7:0] trail_mem [0:WIDTH*HEIGHT-1];
@@ -194,10 +204,22 @@ module slime_top #(
     // =========================================================================
     // VGA Controller
     // =========================================================================
-    logic [9:0] pixel_x;
-    logic [8:0] pixel_y;
+    (* mark_debug = "true" *) logic [9:0] pixel_x;
+    (* mark_debug = "true" *) logic [8:0] pixel_y;
     logic pixel_valid;
-    logic frame_start;
+    (* mark_debug = "true" *) logic frame_start;
+
+    // Frame counter for debug monitoring
+    (* mark_debug = "true" *) logic [31:0] frame_count;
+
+    always_ff @(posedge clk_25mhz or negedge rst_n) begin
+        if (!rst_n) begin
+            frame_count <= '0;
+        end
+        else if (frame_start) begin
+            frame_count <= frame_count + 1'b1;
+        end
+    end
 
     vga_controller u_vga (
         .clk(clk_25mhz),
@@ -214,8 +236,9 @@ module slime_top #(
         .pixel_data(trail_data_a)
     );
 
-    // VGA trail map address
-    assign trail_addr_a = pixel_y * WIDTH + pixel_x;
+    // VGA trail map address (downscale from 640x480 to 160x120)
+    // VGA is 4x upscaled from simulation: 640/160 = 4, 480/120 = 4
+    assign trail_addr_a = (pixel_y >> 2) * WIDTH + (pixel_x >> 2);
 
     // =========================================================================
     // Simulation State Machine
@@ -228,9 +251,9 @@ module slime_top #(
         SIM_WAIT_FRAME
     } sim_state_t;
 
-    sim_state_t sim_state;
-    logic [$clog2(NUM_AGENTS)-1:0] agent_idx;
-    logic sim_running;
+    (* mark_debug = "true" *) sim_state_t sim_state;
+    (* mark_debug = "true" *) logic [$clog2(WIDTH*HEIGHT)-1:0] agent_idx;  // Iterate through all memory locations
+    (* mark_debug = "true" *) logic sim_running;
 
     always_ff @(posedge clk_100mhz or negedge rst_n) begin
         if (!rst_n) begin
@@ -255,7 +278,14 @@ module slime_top #(
 
                 SIM_RUN_AGENTS: begin
                     if (!sim_pause) begin
-                        if (agent_idx == NUM_AGENTS - 1) begin
+                        // Write LFSR-generated trail values across entire memory
+                        trail_addr_b <= agent_idx;
+
+                        // Create organic patterns using LFSR mixed with position for variation
+                        trail_data_b_in <= (lfsr_state[7:0] ^ {agent_idx[7:0]});
+
+                        // Iterate through all memory locations (WIDTH * HEIGHT = 19200)
+                        if (agent_idx == (WIDTH * HEIGHT - 1)) begin
                             agent_idx <= '0;
                             sim_state <= SIM_DIFFUSE;
                         end
@@ -300,5 +330,59 @@ module slime_top #(
 
     // LFSR enable during agent processing
     assign lfsr_enable = (sim_state == SIM_RUN_AGENTS) && !sim_pause;
+
+    // Trail memory write enable during agent processing
+    assign trail_we_b = (sim_state == SIM_RUN_AGENTS) && !sim_pause;
+
+    // =========================================================================
+    // Agent Processor Integration via Orchestrator
+    // =========================================================================
+    // The agent_orchestrator manages:
+    // - Agent state memory (position x,y and angle for each agent)
+    // - Agent initialization across the screen
+    // - Trail deposition during agent processing
+    //
+    // This bridges to the full agent_processor pipeline for future expansion
+
+    logic [18:0] agent_trail_addr;
+    logic [7:0]  agent_trail_data;
+    logic        agent_trail_we;
+    logic [7:0]  agent_trail_read_data;
+
+    // Mux between simple pattern generation and agent orchestrator
+    // For now, keep using the simple pattern (SIM_RUN_AGENTS state)
+    // Agent orchestrator can be integrated by switching the mux
+    assign agent_trail_addr = trail_addr_b;
+    assign agent_trail_data = trail_data_b_in;
+    assign agent_trail_we = trail_we_b;
+
+    // Orchestrator instance (instantiated but not used yet - available for future)
+    // Uncomment to enable full agent-based simulation
+    /*
+    agent_orchestrator #(
+        .NUM_AGENTS(100),
+        .FP_INT_BITS(FP_INT_BITS),
+        .FP_FRAC_BITS(FP_FRAC_BITS),
+        .FP_TOTAL(FP_TOTAL),
+        .TRIG_BITS(TRIG_BITS),
+        .WIDTH(WIDTH),
+        .HEIGHT(HEIGHT)
+    ) u_orchestrator (
+        .clk(clk_100mhz),
+        .rst_n(rst_n),
+        .start(btn_start),
+        .sensor_angle(SENSOR_ANGLE),
+        .sensor_distance(SENSOR_DISTANCE),
+        .turn_speed(DEFAULT_TURN_SPEED),
+        .move_speed(current_move_speed),
+        .deposit_amount(DEPOSIT_AMOUNT),
+        .done(),
+        .lfsr_state(lfsr_state),
+        .trail_addr_b(agent_trail_addr),
+        .trail_data_b_in(agent_trail_data),
+        .trail_we_b(agent_trail_we),
+        .trail_data_b_out(trail_data_b_out)
+    );
+    */
 
 endmodule

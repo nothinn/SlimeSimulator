@@ -1,0 +1,375 @@
+================================================================================
+  SLIME SIMULATOR FPGA REGISTER MAP
+  For use with fpga_controller.py and JTAG memory access
+================================================================================
+
+Target Device: Basys3 FPGA (Artix-7 XC7A35T)
+System Clock: 100 MHz
+Access Method: JTAG-to-AXI Master IP Core
+Address Width: 32-bit
+Data Width: 32-bit (byte-addressable)
+
+================================================================================
+  MEMORY REGIONS
+================================================================================
+
+1. TRAIL MEMORY REGION
+   Base Address: 0x0000_0000
+   Size:         307200 bytes (640 x 480)
+   End Address:  0x0004_AFFF
+   Access:       Read-only via JTAG
+   Format:       8-bit grayscale values per pixel
+   Layout:       Row-major (address = y * 640 + x)
+
+   Description:
+   Contains the trail map showing pheromone concentrations.
+   Each byte represents the trail intensity at that pixel location.
+   Value range: 0-255 (0 = no trail, 255 = maximum intensity)
+
+   Example Python access:
+   ```python
+   # Read single pixel at (x=100, y=50)
+   addr = 50 * 640 + 100
+   value = fpga.read_byte(addr)
+
+   # Read entire frame (640x480 bytes)
+   frame_data = fpga.read_block(0x00000000, 640*480)
+   ```
+
+2. CONTROL/STATUS REGISTER REGION
+   Base Address: 0x0010_0000
+   Size:         20 bytes (5 registers)
+   Access:       Read/Write
+
+================================================================================
+  REGISTER DEFINITIONS
+================================================================================
+
+Register 0x0010_0000: CONTROL_REG
+─────────────────────────────────
+  Access: Read/Write
+  Width:  32-bit
+
+  Bit Fields:
+    [0]     freeze_sim    - Freeze simulation (1 = frozen, 0 = running)
+    [31:1]  reserved      - Reserved for future use
+
+  Description:
+    Controls simulation execution. When freeze_sim is set to 1, the
+    simulation state machine pauses, allowing stable memory reads.
+
+  Usage:
+    # Freeze simulation for memory capture
+    fpga.write_reg(0x00100000, 0x00000001)
+    # Resume simulation
+    fpga.write_reg(0x00100000, 0x00000000)
+
+
+Register 0x0010_0004: STATUS_REG
+─────────────────────────────────
+  Access: Read-only
+  Width:  32-bit
+
+  Bit Fields:
+    [0]     capture_triggered  - Capture has been triggered
+    [1]     capture_done       - Capture completed at frame boundary
+    [31:2]  reserved           - Reserved for future use
+
+  Description:
+    Indicates capture state when using VIO-triggered captures.
+    capture_triggered is set when VIO probe_out0 goes high.
+    capture_done is set when capture completes at next frame boundary.
+
+  Usage:
+    status = fpga.read_reg(0x00100004)
+    if status & 0x02:
+        print("Capture complete")
+
+
+Register 0x0010_0008: FRAME_COUNT
+─────────────────────────────────
+  Access: Read-only
+  Width:  32-bit
+
+  Description:
+    32-bit counter that increments on every VGA frame_start pulse.
+    Approximately 60 Hz (60 frames per second).
+    Useful for synchronizing captures and measuring elapsed time.
+    Wraps around after 4,294,967,295 frames (~828 days at 60 Hz).
+
+  Usage:
+    frame_num = fpga.read_reg(0x00100008)
+    print(f"Current frame: {frame_num}")
+
+
+Register 0x0010_000C: WIDTH
+─────────────────────────────────
+  Access: Read-only
+  Width:  32-bit
+
+  Description:
+    Trail map width in pixels. Fixed at 640 for VGA resolution.
+    Can be read to verify design parameters match expectations.
+
+  Usage:
+    width = fpga.read_reg(0x0010000C)  # Returns 640
+
+
+Register 0x0010_0010: HEIGHT
+─────────────────────────────────
+  Access: Read-only
+  Width:  32-bit
+
+  Description:
+    Trail map height in pixels. Fixed at 480 for VGA resolution.
+    Can be read to verify design parameters match expectations.
+
+  Usage:
+    height = fpga.read_reg(0x00100010)  # Returns 480
+
+
+================================================================================
+  VIO (VIRTUAL I/O) PROBES
+================================================================================
+
+The VIO IP core provides virtual input/output probes accessible via Vivado
+Hardware Manager. These are useful for interactive debugging.
+
+INPUT PROBES (Design → Host):
+─────────────────────────────
+  probe_in0 [1-bit]:   capture_done      - Capture completed flag
+  probe_in1 [32-bit]:  frame_count       - Same as FRAME_COUNT register
+  probe_in2 [8-bit]:   trail_data        - Trail memory data at read_addr
+
+OUTPUT PROBES (Host → Design):
+──────────────────────────────
+  probe_out0 [1-bit]:  capture_trigger   - Trigger capture at next frame
+  probe_out1 [1-bit]:  sim_freeze        - Freeze simulation (same as bit 0 of CONTROL_REG)
+  probe_out2 [1-bit]:  read_enable       - Enable VIO-driven memory reads
+  probe_out3 [19-bit]: read_addr         - Memory address for spot checks (0-307199)
+
+Usage Notes:
+  - VIO probes are accessed through Vivado Hardware Manager GUI
+  - probe_out1 (sim_freeze) is OR'd with CONTROL_REG bit 0
+  - probe_out2/probe_out3 allow reading individual memory locations interactively
+
+
+================================================================================
+  ILA (INTEGRATED LOGIC ANALYZER) PROBES
+================================================================================
+
+The ILA IP core captures waveforms of internal signals for debugging.
+Access via Vivado Hardware Manager's waveform viewer.
+
+PROBES:
+─────────────────────────────
+  probe0 [4-bit]:   sim_state     - Simulation FSM state
+  probe1 [10-bit]:  agent_idx     - Current agent being processed
+  probe2 [32-bit]:  lfsr_state    - Random number generator state
+  probe3 [8-bit]:   trail_data    - Trail memory data being accessed
+  probe4 [10-bit]:  pixel_x       - VGA horizontal pixel position
+  probe5 [9-bit]:   pixel_y       - VGA vertical pixel position
+  probe6 [1-bit]:   frame_start   - VGA frame start pulse
+  probe7 [1-bit]:   sim_running   - Simulation active flag
+
+Capture Depth: 4096 samples
+Trigger Options: Any probe can be used as trigger condition
+
+Simulation States (probe0):
+  0x0: SIM_IDLE        - Waiting for start button
+  0x1: SIM_INIT        - Initializing agents
+  0x2: SIM_RUN_AGENTS  - Processing agent movements
+  0x3: SIM_DIFFUSE     - Applying diffusion to trail map
+  0x4: SIM_WAIT_FRAME  - Waiting for next VGA frame
+
+
+================================================================================
+  PYTHON EXAMPLE: fpga_controller.py Integration
+================================================================================
+
+```python
+import struct
+from pynq import Overlay
+
+class SlimeFPGAController:
+    # Register addresses
+    TRAIL_MEM_BASE   = 0x00000000
+    TRAIL_MEM_SIZE   = 640 * 480
+    CONTROL_REG      = 0x00100000
+    STATUS_REG       = 0x00100004
+    FRAME_COUNT_REG  = 0x00100008
+    WIDTH_REG        = 0x0010000C
+    HEIGHT_REG       = 0x00100010
+
+    def __init__(self, jtag_cable_id=None):
+        """Initialize JTAG connection to FPGA"""
+        # TODO: Initialize JTAG-to-AXI connection
+        pass
+
+    def freeze_sim(self, freeze=True):
+        """Freeze or resume simulation"""
+        value = 0x01 if freeze else 0x00
+        self.write_reg(self.CONTROL_REG, value)
+
+    def get_frame_count(self):
+        """Get current frame number"""
+        return self.read_reg(self.FRAME_COUNT_REG)
+
+    def get_dimensions(self):
+        """Get trail map dimensions"""
+        width = self.read_reg(self.WIDTH_REG)
+        height = self.read_reg(self.HEIGHT_REG)
+        return (width, height)
+
+    def capture_frame(self):
+        """Capture trail map frame"""
+        # Freeze simulation
+        self.freeze_sim(True)
+
+        # Wait for frame boundary
+        frame_start = self.get_frame_count()
+        while self.get_frame_count() == frame_start:
+            time.sleep(0.001)
+
+        # Read entire trail memory
+        data = self.read_block(self.TRAIL_MEM_BASE, self.TRAIL_MEM_SIZE)
+
+        # Resume simulation
+        self.freeze_sim(False)
+
+        # Convert to numpy array
+        import numpy as np
+        frame = np.frombuffer(data, dtype=np.uint8)
+        frame = frame.reshape((480, 640))
+        return frame
+
+    def read_reg(self, addr):
+        """Read 32-bit register via JTAG-to-AXI"""
+        # TODO: Implement JTAG read transaction
+        pass
+
+    def write_reg(self, addr, value):
+        """Write 32-bit register via JTAG-to-AXI"""
+        # TODO: Implement JTAG write transaction
+        pass
+
+    def read_block(self, addr, size):
+        """Read block of memory via JTAG-to-AXI"""
+        # TODO: Implement burst read transaction
+        pass
+
+
+# Example usage
+if __name__ == "__main__":
+    fpga = SlimeFPGAController()
+
+    # Verify connection
+    width, height = fpga.get_dimensions()
+    print(f"Connected to FPGA: {width}x{height}")
+
+    # Capture frame
+    frame = fpga.capture_frame()
+    print(f"Captured frame {fpga.get_frame_count()}")
+
+    # Save as image
+    from PIL import Image
+    img = Image.fromarray(frame, mode='L')
+    img.save('fpga_capture.png')
+```
+
+
+================================================================================
+  HARDWARE MANAGER TCL COMMANDS
+================================================================================
+
+The following TCL commands can be used in Vivado Hardware Manager to access
+the FPGA memory:
+
+# Connect to FPGA
+open_hw_manager
+connect_hw_server
+open_hw_target
+refresh_hw_device [current_hw_device]
+
+# Access JTAG-to-AXI Master
+set jtag_axi [get_hw_axis hw_axi_1]
+
+# Read single register
+create_hw_axi_txn read_txn [get_hw_axis $jtag_axi] -address 0x00100008 -len 1 -type read
+run_hw_axi read_txn
+set frame_count [get_property DATA [get_hw_axi_txn read_txn]]
+puts "Frame count: $frame_count"
+
+# Freeze simulation
+create_hw_axi_txn freeze_txn [get_hw_axis $jtag_axi] -address 0x00100000 -data 00000001 -type write
+run_hw_axi freeze_txn
+
+# Read trail memory (first 1024 bytes)
+create_hw_axi_txn read_mem_txn [get_hw_axis $jtag_axi] -address 0x00000000 -len 1024 -type read
+run_hw_axi read_mem_txn
+set mem_data [get_property DATA [get_hw_axi_txn read_mem_txn]]
+
+
+================================================================================
+  TIMING CONSIDERATIONS
+================================================================================
+
+Frame Rate:       ~60 Hz (VGA vertical refresh)
+Frame Period:     ~16.67 ms
+System Clock:     100 MHz (10 ns period)
+AXI Clock:        100 MHz (same as system clock)
+
+Memory Read Latency:
+  - Single read:  ~5 AXI clock cycles + JTAG overhead
+  - Burst read:   ~3 cycles per word (after initial latency)
+
+Estimated Full Frame Capture Time:
+  - 307200 bytes / 4 bytes per AXI transaction = 76800 transactions
+  - At ~100 ns per transaction = ~7.7 ms
+  - With JTAG overhead: ~20-50 ms typical
+
+Recommendation:
+  Freeze simulation during capture to ensure coherent frame data.
+
+
+================================================================================
+  TROUBLESHOOTING
+================================================================================
+
+Problem: Cannot connect to JTAG-to-AXI Master
+Solution:
+  - Verify bitstream is programmed correctly
+  - Check JTAG cable connection
+  - Refresh hardware device in Hardware Manager
+  - Look for hw_axi_1 in get_hw_axis output
+
+Problem: Read data is all 0x00 or 0xFF
+Solution:
+  - Check that simulation is running (press BTNC to start)
+  - Wait several frames for trails to form
+  - Use ILA to verify memory is being written
+
+Problem: Frame data appears corrupted or tearing
+Solution:
+  - Use freeze_sim control to pause simulation during capture
+  - Synchronize capture with frame_start by monitoring FRAME_COUNT
+  - Increase read speed or reduce frame rate if tearing persists
+
+Problem: Registers return unexpected values
+Solution:
+  - Verify address is correctly formatted (no typos)
+  - Check that device is not in reset (LED indicators)
+  - Use VIO to cross-check internal signal values
+
+
+================================================================================
+  REVISION HISTORY
+================================================================================
+
+Version 1.0 - 2025-11-24
+  - Initial register map for debug infrastructure
+  - JTAG-to-AXI, VIO, and ILA integration
+  - 640x480 trail memory region defined
+  - Control/status registers defined
+
+================================================================================

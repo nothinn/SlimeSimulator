@@ -1,0 +1,481 @@
+================================================================================
+SLIME SIMULATOR - DEBUG INFRASTRUCTURE SUMMARY
+================================================================================
+
+Build Command:
+  cd /home/reson/SlimeSimulator
+  vivado -mode batch -source rtl/build_with_debug.tcl
+
+Output:
+  vivado_project_debug/slime_simulator_debug.runs/impl_1/slime_top.bit
+
+Build Time: ~20-30 minutes
+
+================================================================================
+ILA - INTEGRATED LOGIC ANALYZER
+================================================================================
+
+Configuration:
+  - Sample Depth:     8,192 samples (8K cycles)
+  - Clock Domain:     100 MHz (clk_100mhz)
+  - Total Probe Width: ~100 bits
+  - Memory Usage:     ~120 Kbits BRAM
+  - Trigger:          Advanced, multi-condition
+
+Probe List (15 probes):
+┌───────┬────────────────────┬───────┬─────────────────────────────────────────┐
+│ Probe │ Signal Name        │ Width │ Description                             │
+├───────┼────────────────────┼───────┼─────────────────────────────────────────┤
+│   0   │ lfsr_state         │  32   │ LFSR random number generator output     │
+│   1   │ sim_state          │   4   │ Simulation state machine                │
+│       │                    │       │   0: IDLE                               │
+│       │                    │       │   1: INIT                               │
+│       │                    │       │   2: RUN_AGENTS                         │
+│       │                    │       │   3: DIFFUSE                            │
+│       │                    │       │   4: WAIT_FRAME                         │
+├───────┼────────────────────┼───────┼─────────────────────────────────────────┤
+│   2   │ agent_idx          │  10   │ Current agent index (0-999)             │
+├───────┼────────────────────┼───────┼─────────────────────────────────────────┤
+│   3   │ trail_addr_b       │  19   │ Trail map write address                 │
+│       │                    │       │   Range: 0-19199 (160×120)              │
+│       │                    │       │   Decode: x = addr % 160                │
+│       │                    │       │           y = addr / 160                │
+├───────┼────────────────────┼───────┼─────────────────────────────────────────┤
+│   4   │ trail_data_b_in    │   8   │ Trail map write data (0-255 intensity)  │
+├───────┼────────────────────┼───────┼─────────────────────────────────────────┤
+│   5   │ trail_we_b         │   1   │ Trail map write enable                  │
+│       │                    │       │   1: Write active                       │
+│       │                    │       │   0: No write                           │
+├───────┼────────────────────┼───────┼─────────────────────────────────────────┤
+│   6   │ vga_hs             │   1   │ VGA horizontal sync (active low)        │
+├───────┼────────────────────┼───────┼─────────────────────────────────────────┤
+│   7   │ vga_vs             │   1   │ VGA vertical sync (active low)          │
+├───────┼────────────────────┼───────┼─────────────────────────────────────────┤
+│   8   │ pixel_x            │  10   │ VGA current pixel X (0-639)             │
+├───────┼────────────────────┼───────┼─────────────────────────────────────────┤
+│   9   │ pixel_y            │   9   │ VGA current pixel Y (0-479)             │
+├───────┼────────────────────┼───────┼─────────────────────────────────────────┤
+│  10   │ frame_start        │   1   │ VGA frame start pulse (1 cycle/frame)   │
+│       │                    │       │   60 Hz (every 16.67ms)                 │
+├───────┼────────────────────┼───────┼─────────────────────────────────────────┤
+│  11   │ sim_running        │   1   │ Simulation active flag                  │
+│       │                    │       │   1: Running, 0: Stopped                │
+├───────┼────────────────────┼───────┼─────────────────────────────────────────┤
+│  12   │ sim_pause          │   1   │ Simulation paused (SW[0])               │
+│       │                    │       │   1: Paused, 0: Running                 │
+├───────┼────────────────────┼───────┼─────────────────────────────────────────┤
+│  13   │ speed_level        │   4   │ Speed control (0-15, default 8)         │
+│       │                    │       │   Higher = faster simulation            │
+├───────┼────────────────────┼───────┼─────────────────────────────────────────┤
+│  14   │ btn_debounced      │   5   │ Debounced button inputs                 │
+│       │                    │       │   [4]: BTNR (reserved)                  │
+│       │                    │       │   [3]: BTNL (randomize)                 │
+│       │                    │       │   [2]: BTND (speed down)                │
+│       │                    │       │   [1]: BTNU (speed up)                  │
+│       │                    │       │   [0]: BTNC (start/stop)                │
+└───────┴────────────────────┴───────┴─────────────────────────────────────────┘
+
+Common Trigger Conditions:
+  - Frame boundary:       frame_start == 1
+  - Agent processing:     sim_state == 4'b0010 (RUN_AGENTS)
+  - Memory write:         trail_we_b == 1
+  - Specific agent:       agent_idx == 10'd<N>
+  - Button press:         btn_debounced[0] == 1 (center button)
+  - LFSR sequence:        lfsr_state == 32'h<value>
+
+TCL Commands:
+  # Set trigger on frame start
+  set_property TRIGGER_COMPARE_VALUE {eq1'b1} \\
+    [get_hw_probes frame_start -of_objects [get_hw_ilas hw_ila_1]]
+
+  # Arm and capture
+  run_hw_ila hw_ila_1
+  wait_on_hw_ila hw_ila_1
+
+  # View waveform
+  display_hw_ila_data [upload_hw_ila_data hw_ila_1]
+
+  # Export to CSV
+  write_hw_ila_data -csv_file capture.csv hw_ila_1
+
+
+================================================================================
+VIO - VIRTUAL I/O
+================================================================================
+
+Configuration:
+  - Input Probes:  7 (read design state in real-time)
+  - Output Probes: 5 (control design from software)
+  - Update Rate:   ~100 MHz (immediate)
+  - Access:        Vivado Hardware Manager Dashboard
+
+Input Probes (Read from Design):
+┌───────┬──────────────────┬───────┬─────────────────────────────────────────┐
+│ Probe │ Signal Name      │ Width │ Description                             │
+├───────┼──────────────────┼───────┼─────────────────────────────────────────┤
+│  IN0  │ lfsr_state       │  32   │ Current LFSR value (live)               │
+│       │                  │       │   Hex value, updates continuously       │
+├───────┼──────────────────┼───────┼─────────────────────────────────────────┤
+│  IN1  │ sim_state        │   4   │ Current simulation state                │
+│       │                  │       │   See state encoding above              │
+├───────┼──────────────────┼───────┼─────────────────────────────────────────┤
+│  IN2  │ agent_idx        │  10   │ Agent currently being processed         │
+│       │                  │       │   Range: 0-999                          │
+├───────┼──────────────────┼───────┼─────────────────────────────────────────┤
+│  IN3  │ trail_data_b_out │   8   │ Last trail map read value               │
+│       │                  │       │   Use with OUT1/OUT2 to read memory     │
+├───────┼──────────────────┼───────┼─────────────────────────────────────────┤
+│  IN4  │ frame_count      │  32   │ VGA frame counter                       │
+│       │                  │       │   Increments at 60 Hz                   │
+│       │                  │       │   Use to measure time/performance       │
+├───────┼──────────────────┼───────┼─────────────────────────────────────────┤
+│  IN5  │ sim_running      │   1   │ Simulation running status               │
+│       │                  │       │   1: Active, 0: Stopped                 │
+├───────┼──────────────────┼───────┼─────────────────────────────────────────┤
+│  IN6  │ led              │  16   │ LED status display (SW[15:0])           │
+│       │                  │       │   [3:0]:   speed_level                  │
+│       │                  │       │   [4]:     sim_running                  │
+│       │                  │       │   [5]:     sim_pause                    │
+│       │                  │       │   [7:6]:   sim_state[1:0]               │
+│       │                  │       │   [15:8]:  lfsr_state[7:0]              │
+└───────┴──────────────────┴───────┴─────────────────────────────────────────┘
+
+Output Probes (Write to Design):
+┌───────┬──────────────────┬───────┬─────────────────────────────────────────┐
+│ Probe │ Signal Name      │ Width │ Description                             │
+├───────┼──────────────────┼───────┼─────────────────────────────────────────┤
+│ OUT0  │ vio_sim_freeze   │   1   │ Freeze simulation for inspection        │
+│       │                  │       │   1: Frozen, 0: Normal                  │
+│       │                  │       │   Overrides pause switch                │
+├───────┼──────────────────┼───────┼─────────────────────────────────────────┤
+│ OUT1  │ vio_trail_read_en│   1   │ Enable trail map read via VIO           │
+│       │                  │       │   Set high, then read IN3 for data      │
+├───────┼──────────────────┼───────┼─────────────────────────────────────────┤
+│ OUT2  │ vio_trail_addr   │  19   │ Trail map address to read               │
+│       │                  │       │   Set address, enable OUT1, read IN3    │
+│       │                  │       │   Address = y * 160 + x                 │
+├───────┼──────────────────┼───────┼─────────────────────────────────────────┤
+│ OUT3  │ vio_inject_seed  │   1   │ Inject new LFSR seed trigger            │
+│       │                  │       │   Pulse high to load OUT4 into LFSR     │
+├───────┼──────────────────┼───────┼─────────────────────────────────────────┤
+│ OUT4  │ vio_seed_value   │  32   │ LFSR seed value to inject               │
+│       │                  │       │   Set value, then pulse OUT3            │
+└───────┴──────────────────┴───────┴─────────────────────────────────────────┘
+
+TCL Commands:
+  # Read current LFSR state
+  set lfsr [get_property INPUT_VALUE \\
+    [get_hw_probes lfsr_state -of_objects [get_hw_vios hw_vio_1]]]
+  puts "LFSR: 0x[format %08X $lfsr]"
+
+  # Read frame count
+  set frames [get_property INPUT_VALUE \\
+    [get_hw_probes frame_count -of_objects [get_hw_vios hw_vio_1]]]
+  puts "Frame: $frames"
+
+  # Freeze simulation
+  set_property OUTPUT_VALUE 1 [get_hw_probes vio_sim_freeze]
+  commit_hw_vio [get_hw_vios hw_vio_1]
+
+  # Read trail map at (x=80, y=60)
+  set addr [expr {60 * 160 + 80}]
+  set_property OUTPUT_VALUE $addr [get_hw_probes vio_trail_addr]
+  set_property OUTPUT_VALUE 1 [get_hw_probes vio_trail_read_en]
+  commit_hw_vio [get_hw_vios hw_vio_1]
+  after 100  ; # Wait for read
+  set pixel [get_property INPUT_VALUE [get_hw_probes trail_data_b_out]]
+  puts "Pixel at (80,60): $pixel"
+
+  # Inject LFSR seed
+  set_property OUTPUT_VALUE 0xDEADBEEF [get_hw_probes vio_seed_value]
+  set_property OUTPUT_VALUE 1 [get_hw_probes vio_inject_seed]
+  commit_hw_vio [get_hw_vios hw_vio_1]
+  set_property OUTPUT_VALUE 0 [get_hw_probes vio_inject_seed]
+  commit_hw_vio [get_hw_vios hw_vio_1]
+
+
+================================================================================
+JTAG-TO-AXI - MEMORY ACCESS
+================================================================================
+
+Configuration:
+  - Protocol:       AXI4-Lite
+  - Data Width:     32 bits
+  - Address Width:  32 bits
+  - Base Address:   0x00000000
+  - Memory Size:    19,200 bytes (160×120 trail map)
+
+Memory Map:
+┌────────────────┬────────────┬─────────────────────────────────────────────┐
+│ Address Range  │ Size       │ Description                                 │
+├────────────────┼────────────┼─────────────────────────────────────────────┤
+│ 0x0000-0x4AFF  │ 19,200 B   │ Trail map (160×120 pixels, 1 byte each)     │
+│                │            │   Pixel[y][x] @ addr = y * 160 + x          │
+│                │            │   Value: 0-255 (trail intensity)            │
+├────────────────┼────────────┼─────────────────────────────────────────────┤
+│ 0x4B00+        │ -          │ Reserved / Unmapped                         │
+└────────────────┴────────────┴─────────────────────────────────────────────┘
+
+Address Calculation:
+  Linear address = y * WIDTH + x
+  Where:
+    x: 0-159 (column)
+    y: 0-119 (row)
+    WIDTH: 160
+
+  Example: Pixel at (x=100, y=50)
+    Address = 50 * 160 + 100 = 8,100 (0x1FA4)
+
+Reverse (address to coordinates):
+  x = address % 160
+  y = address / 160
+
+  Example: Address 8,100
+    x = 8100 % 160 = 100
+    y = 8100 / 160 = 50
+
+TCL Commands:
+  # Read single pixel at (x=80, y=60)
+  set addr [expr {60 * 160 + 80}]
+  create_hw_axi_txn read_px [get_hw_axis hw_axi_1] \\
+    -address $addr -len 1 -type read
+  run_hw_axi read_px
+  set pixel [get_property DATA [get_hw_axi_txns read_px]]
+  puts "Pixel: $pixel"
+
+  # Read entire row (y=60)
+  set start_addr [expr {60 * 160}]
+  create_hw_axi_txn read_row [get_hw_axis hw_axi_1] \\
+    -address $start_addr -len 160 -type read
+  run_hw_axi read_row
+  set row_data [get_property DATA [get_hw_axi_txns read_row]]
+
+  # Write pixel at (x=50, y=40) with value 255
+  set addr [expr {40 * 160 + 50}]
+  create_hw_axi_txn write_px [get_hw_axis hw_axi_1] \\
+    -address $addr -data 255 -type write
+  run_hw_axi write_px
+
+  # Dump entire memory to file
+  create_hw_axi_txn dump_all [get_hw_axis hw_axi_1] \\
+    -address 0x0000 -len 19200 -type read
+  run_hw_axi dump_all
+  set data [get_property DATA [get_hw_axi_txns dump_all]]
+  set fp [open "trail_map_dump.bin" w]
+  fconfigure $fp -translation binary
+  puts -nonewline $fp $data
+  close $fp
+
+
+================================================================================
+JTAG DEVICE CHAIN
+================================================================================
+
+Device Hierarchy:
+  JTAG Chain
+  └─ Device 0: XC7A35T (Artix-7 FPGA)
+     └─ User Scan Chain: Debug Hub
+        ├─ hw_ila_1: Integrated Logic Analyzer
+        ├─ hw_vio_1: Virtual I/O
+        └─ hw_axi_1: JTAG-to-AXI Master
+
+Access Sequence:
+  1. open_hw_manager
+  2. connect_hw_server
+  3. open_hw_target
+  4. current_hw_device [lindex [get_hw_devices] 0]
+  5. Program device
+  6. Access debug cores:
+     - get_hw_ilas hw_ila_1
+     - get_hw_vios hw_vio_1
+     - get_hw_axis hw_axi_1
+
+
+================================================================================
+RESOURCE UTILIZATION (with Debug)
+================================================================================
+
+Estimated Resource Usage:
+┌────────────────┬─────────┬───────────┬────────────┐
+│ Resource       │ Used    │ Available │ Percentage │
+├────────────────┼─────────┼───────────┼────────────┤
+│ LUTs           │  8,000  │  20,800   │   38%      │
+│ Registers      │ 10,000  │  41,600   │   24%      │
+│ BRAM Tiles     │     25  │      50   │   50%      │
+│ DSPs           │      4  │      90   │    4%      │
+└────────────────┴─────────┴───────────┴────────────┘
+
+Debug Infrastructure Overhead:
+  - LUTs:       +1,500 (debug logic)
+  - Registers:  +2,000 (sample buffers, control)
+  - BRAM:       +4 tiles (ILA sample memory)
+
+Timing Impact:
+  - Max Frequency: ~115 MHz (reduced from ~125 MHz)
+  - Impact:        -8% (still meets 100 MHz requirement)
+
+
+================================================================================
+PROGRAMMING AND ACCESS
+================================================================================
+
+1. Program FPGA:
+   vivado -mode batch -source rtl/program_fpga.tcl
+
+   Or manually:
+   open_hw_manager
+   connect_hw_server
+   open_hw_target
+   set_property PROGRAM.FILE \\
+     {vivado_project_debug/.../slime_top.bit} [current_hw_device]
+   program_hw_devices [current_hw_device]
+
+2. Access Debug Cores:
+   Hardware Manager -> Right-click on device -> Select debug core
+
+3. Quick Test:
+   # Verify VIO works
+   get_hw_vios
+   # Should show: hw_vio_1
+
+   # Read frame count (should increment)
+   set fc1 [get_property INPUT_VALUE \\
+     [get_hw_probes frame_count -of_objects [get_hw_vios hw_vio_1]]]
+   after 1000
+   set fc2 [get_property INPUT_VALUE \\
+     [get_hw_probes frame_count -of_objects [get_hw_vios hw_vio_1]]]
+   puts "Frames in 1 sec: [expr {$fc2 - $fc1}]"
+   # Should show ~60 frames
+
+
+================================================================================
+COMMON DEBUG SCENARIOS
+================================================================================
+
+Scenario 1: Capture LFSR Sequence
+  Purpose:  Verify random number generation
+  Tool:     ILA
+  Trigger:  sim_running == 1
+  Duration: 8192 samples @ 100 MHz = 81.92 us
+  Export:   CSV for analysis
+
+Scenario 2: Monitor Agent Processing
+  Purpose:  Watch agents update trail map
+  Tool:     ILA + VIO
+  Trigger:  sim_state == RUN_AGENTS && trail_we_b == 1
+  Monitor:  agent_idx, trail_addr_b, trail_data_b_in
+
+Scenario 3: Analyze VGA Timing
+  Purpose:  Verify 640×480@60Hz timing
+  Tool:     ILA
+  Trigger:  frame_start == 1
+  Capture:  hsync, vsync, pixel_x, pixel_y
+  Verify:   Hsync period, Vsync period, frame rate
+
+Scenario 4: Extract Trail Map Image
+  Purpose:  Save current simulation state
+  Tool:     JTAG-to-AXI
+  Method:   Read all 19,200 bytes to file
+  Process:  Convert to PNG/visualize
+
+Scenario 5: Inject Test Pattern
+  Purpose:  Test agent behavior with known trails
+  Tool:     JTAG-to-AXI
+  Method:   Write known pattern to memory
+  Verify:   Agents respond correctly
+
+Scenario 6: Freeze and Inspect
+  Purpose:  Examine state at specific point
+  Tool:     VIO
+  Method:   Set vio_sim_freeze = 1
+  Inspect:  Read all VIO inputs, trigger ILA
+  Resume:   Set vio_sim_freeze = 0
+
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+Problem: "No debug cores found"
+Solution:
+  - Verify debug-enabled bitstream programmed
+  - Check build used build_with_debug.tcl
+  - Look for debug_hub in design
+
+Problem: "ILA not triggering"
+Solution:
+  - Use immediate trigger mode for test
+  - Check clock is running (VIO frame_count)
+  - Verify trigger condition syntax
+  - Increase trigger position
+
+Problem: "VIO shows zeros"
+Solution:
+  - Verify mark_debug attributes in RTL
+  - Check clock domain
+  - Refresh VIO dashboard
+  - Re-program device
+
+Problem: "JTAG-to-AXI read fails"
+Solution:
+  - Verify address in range (0x0000-0x4AFF)
+  - Check AXI BRAM controller instantiated
+  - Try smaller read burst
+  - Use single-byte transactions
+
+Problem: "Timing violations with debug"
+Solution:
+  - Reduce ILA depth (8192 -> 4096)
+  - Disable advanced triggering
+  - Add input pipeline stages
+  - Check critical path timing
+
+
+================================================================================
+PERFORMANCE METRICS
+================================================================================
+
+ILA Capture Performance:
+  - Sample Rate:      100 MSPS (100 MHz clock)
+  - Capture Depth:    8,192 samples
+  - Capture Window:   81.92 microseconds
+  - Trigger Latency:  ~10 ns
+  - Upload Time:      ~100 ms (via JTAG)
+
+VIO Update Rate:
+  - Refresh Rate:     ~10 Hz (GUI)
+  - Latency:          <100 ns (design to probe)
+  - Write Latency:    <100 ns (probe to design)
+
+JTAG-to-AXI Throughput:
+  - Single Byte:      ~1 ms per transaction
+  - Burst (256B):     ~50 ms per burst
+  - Full Memory:      ~5 seconds (19,200 bytes)
+
+
+================================================================================
+REFERENCES
+================================================================================
+
+Documentation:
+  - Full Guide:  rtl/DEBUG_INFRASTRUCTURE.md
+  - Build Script: rtl/build_with_debug.tcl
+  - Debug TCL:    rtl/scripts/integrate_debug_cores.tcl
+  - Modified RTL: rtl/src/slime_top.sv (with mark_debug attributes)
+
+Xilinx Resources:
+  - UG908: Vivado Programming and Debug Guide
+  - PG172: ILA Product Guide
+  - PG159: VIO Product Guide
+  - PG174: JTAG-to-AXI Product Guide
+
+Support:
+  - Xilinx Forums: https://support.xilinx.com/
+  - Vivado Documentation: Help -> Documentation in Vivado
+
+================================================================================
+END OF DEBUG SUMMARY
+================================================================================
+Generated: 2025-11-25
+Target: Basys3 (Artix-7 XC7A35T)
+Design: Slime Simulator with Debug Infrastructure

@@ -1,0 +1,24 @@
+#-----------------------------------------------------------
+# Vivado v2025.2 (64-bit)
+# SW Build 6299465 on Fri Nov 14 12:34:56 MST 2025
+# IP Build 6300035 on Fri Nov 14 10:48:45 MST 2025
+# SharedData Build 6298862 on Thu Nov 13 04:50:51 MST 2025
+# Start of session at: Tue Nov 25 15:44:38 2025
+# Process ID         : 728074
+# Current directory  : /home/reson/SlimeSimulator
+# Command line       : vivado -mode batch -source rtl/program_fpga.tcl -tclargs rtl/vivado_project/slime_simulator.runs/impl_1/slime_top.bit
+# Log file           : /home/reson/SlimeSimulator/vivado.log
+# Journal file       : /home/reson/SlimeSimulator/vivado.jou
+# Running On         : reson-Test1
+# Platform           : Ubuntu
+# Operating System   : Ubuntu 24.04.3 LTS
+# Processor Detail   : Intel(R) Core(TM) i7-10875H CPU @ 2.30GHz
+# CPU Frequency      : 4400.089 MHz
+# CPU Physical cores : 8
+# CPU Logical cores  : 16
+# Host memory        : 67041 MB
+# Swap memory        : 8589 MB
+# Total Virtual      : 75631 MB
+# Available Virtual  : 65614 MB
+#-----------------------------------------------------------
+source rtl/program_fpga.tcl

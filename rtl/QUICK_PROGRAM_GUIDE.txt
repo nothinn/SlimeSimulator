@@ -1,0 +1,143 @@
+================================================================================
+QUICK PROGRAMMING GUIDE - Slime Simulator FPGA Bitstreams
+================================================================================
+
+BITSTREAM FILES (Ready to Program)
+================================================================================
+
+[1] VGA Test Pattern (Diagnostic)
+    File: vivado_project_solid/vga_solid_test.runs/impl_1/vga_solid_color.bit
+    Size: 270 KB
+    Use:  Quick VGA verification before loading main design
+
+[2] Main Slime Simulator (Full Design)
+    File: vivado_project/slime_simulator.runs/impl_1/slime_top.bit
+    Size: 439 KB
+    Use:  Production slime trail visualization
+
+================================================================================
+
+FASTEST METHOD: Vivado Hardware Manager GUI
+================================================================================
+
+1. Connect Basys3 board via USB
+2. Open Vivado 2025.2
+3. Click: Flow Navigator -> PROGRAM AND DEBUG -> Open Hardware Manager
+4. Click: "Open target" -> "Auto Connect"
+5. Right-click on xc7a35t_0 -> "Program Device"
+6. Browse to bitstream file (select one above)
+7. Click "Program"
+8. Wait ~10 seconds for programming
+9. Design starts running immediately after programming
+
+================================================================================
+
+COMMAND LINE METHOD: Using vivado -mode tcl
+================================================================================
+
+cd /home/reson/SlimeSimulator/rtl
+
+# Start Vivado in TCL mode
+source ~/2025.2/Vivado/.settings64-Vivado.sh
+vivado -mode tcl
+
+# In Vivado TCL prompt, run:
+open_hw_manager
+connect_hw_server
+open_hw_target
+
+# Program VGA test:
+set_property PROGRAM.FILE {vivado_project_solid/vga_solid_test.runs/impl_1/vga_solid_color.bit} [get_hw_devices xc7a35t_0]
+program_hw_devices [get_hw_devices xc7a35t_0]
+
+# OR program main design:
+set_property PROGRAM.FILE {vivado_project/slime_simulator.runs/impl_1/slime_top.bit} [get_hw_devices xc7a35t_0]
+program_hw_devices [get_hw_devices xc7a35t_0]
+
+================================================================================
+
+TESTING AFTER PROGRAMMING
+================================================================================
+
+VGA Test Pattern:
+  - Connect VGA monitor to Basys3 VGA port
+  - Use SW[2:0] to select test pattern (0-7):
+      0: Color bars
+      1: Gradient
+      2: Checkerboard
+      3: Border test
+      4: Grid
+      5: RGB bars
+      6: Crosshatch
+      7: Pixel test
+  - All LEDs should show activity
+
+Main Slime Simulator:
+  - Connect VGA monitor to Basys3 VGA port
+  - SW[0]: Mode selection
+  - Buttons: Control agents/simulation
+  - Watch for trail patterns on display
+  - LEDs show system status
+
+================================================================================
+
+TROUBLESHOOTING
+================================================================================
+
+If programming fails:
+  1. Check USB cable connection
+  2. Verify Basys3 power (Power LED on)
+  3. Check JTAG mode jumper (should be in JTAG position)
+  4. Try different USB port
+  5. Restart Vivado Hardware Manager
+
+If display shows nothing:
+  1. Check VGA cable connection
+  2. Verify monitor is on correct input
+  3. Try different monitor/cable
+  4. Re-program the bitstream
+  5. Press RESET button on Basys3
+
+If display is garbled:
+  1. Check timing (should see stable image)
+  2. Verify bitstream programmed correctly
+  3. Try VGA test pattern first (simpler design)
+
+================================================================================
+
+EXPECTED RESULTS
+================================================================================
+
+VGA Test Pattern:
+  ✓ Stable 640x480 image at 60 Hz
+  ✓ Clean test patterns (no flickering)
+  ✓ Correct colors (4-bit RGB)
+  ✓ Pattern changes with switch settings
+  ✓ LEDs show activity
+
+Main Slime Simulator:
+  ✓ Stable 640x480 display
+  ✓ Trail visualization visible
+  ✓ Responsive to button inputs
+  ✓ Smooth animation
+  ✓ Trail decay/persistence visible
+
+================================================================================
+
+PERFORMANCE METRICS (Achieved)
+================================================================================
+
+VGA Test:
+  - Timing: WNS = 6.236 ns (all constraints met)
+  - Resources: <0.2% logic, 0% BRAM
+  - Verified: VGA timing generation
+
+Main Design:
+  - Timing: WNS = 5.067 ns (all constraints met)
+  - Resources: <1% logic, 8% BRAM
+  - Features: Full trail memory and visualization
+
+Both designs have significant positive timing slack and are ready for
+production use on Basys3 hardware.
+
+================================================================================

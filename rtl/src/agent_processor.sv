@@ -67,20 +67,25 @@ module agent_processor #(
     localparam signed [FP_TOTAL-1:0] WIDTH_FP = FP_TOTAL'(WIDTH * FP_SCALE);
     localparam signed [FP_TOTAL-1:0] HEIGHT_FP = FP_TOTAL'(HEIGHT * FP_SCALE);
 
-    // State machine
-    typedef enum logic [3:0] {
+    // State machine (19 states needs 5 bits)
+    typedef enum logic [4:0] {
         IDLE,
-        CALC_SENSORS,
-        WAIT_TRIG_F,
+        CALC_SENSOR_F_X,      // Calculate forward sensor X component
+        CALC_SENSOR_F_Y,      // Calculate forward sensor Y component
         READ_TRAIL_F,
         WAIT_TRAIL_F,
-        READ_TRAIL_LR,
+        CALC_SENSOR_L_X,      // Calculate left sensor X
+        CALC_SENSOR_L_Y,      // Calculate left sensor Y
+        READ_TRAIL_L,
         WAIT_TRAIL_L,
+        CALC_SENSOR_R_X,      // Calculate right sensor X
+        CALC_SENSOR_R_Y,      // Calculate right sensor Y
+        READ_TRAIL_R,
         WAIT_TRAIL_R,
         SENSORY_DECISION,
-        CALC_MOVE,
-        WAIT_TRIG_MOVE,
-        UPDATE_POS,
+        CALC_MOVE_X,          // Calculate dx = cos * speed
+        CALC_MOVE_Y,          // Calculate dy = sin * speed
+        UPDATE_POS,           // Apply dx, dy and wrap
         WRITE_TRAIL,
         DONE_STATE
     } state_t;
@@ -90,9 +95,11 @@ module agent_processor #(
     // Registered agent data
     logic signed [FP_TOTAL-1:0] x_reg, y_reg, angle_reg;
     logic signed [FP_TOTAL-1:0] new_x, new_y, new_angle;
+    logic signed [FP_TOTAL-1:0] dx, dy;  // Movement deltas
 
-    // Sensor readings
-    logic signed [FP_TOTAL-1:0] trail_forward, trail_left, trail_right;
+    // Sensor positions and readings
+    logic signed [FP_TOTAL-1:0] sensor_x, sensor_y;
+    logic [7:0] trail_forward, trail_left, trail_right;
 
     // Trig LUT interface
     logic [TRIG_BITS-1:0] trig_angle_idx;
@@ -154,9 +161,7 @@ module agent_processor #(
     endfunction
 
     // Intermediate calculations
-    logic signed [FP_TOTAL-1:0] sense_x, sense_y;
-    logic signed [FP_TOTAL-1:0] sense_angle;
-    logic [1:0] sensor_phase;  // 0=forward, 1=left, 2=right
+    logic signed [FP_TOTAL-1:0] current_sense_angle;
 
     // State register
     always_ff @(posedge clk or negedge rst_n) begin
@@ -173,49 +178,38 @@ module agent_processor #(
         next_state = state;
         case (state)
             IDLE:
-                if (start) next_state = CALC_SENSORS;
+                if (start) next_state = CALC_SENSOR_F_X;
 
-            CALC_SENSORS:
-                next_state = WAIT_TRIG_F;
-
-            WAIT_TRIG_F:
-                next_state = READ_TRAIL_F;
-
-            READ_TRAIL_F:
-                next_state = WAIT_TRAIL_F;
-
+            // Forward sensor
+            CALC_SENSOR_F_X: next_state = CALC_SENSOR_F_Y;
+            CALC_SENSOR_F_Y: next_state = READ_TRAIL_F;
+            READ_TRAIL_F:    next_state = WAIT_TRAIL_F;
             WAIT_TRAIL_F:
-                if (trail_read_valid) next_state = READ_TRAIL_LR;
+                if (trail_read_valid) next_state = CALC_SENSOR_L_X;
 
-            READ_TRAIL_LR:
-                next_state = WAIT_TRAIL_L;
-
+            // Left sensor
+            CALC_SENSOR_L_X: next_state = CALC_SENSOR_L_Y;
+            CALC_SENSOR_L_Y: next_state = READ_TRAIL_L;
+            READ_TRAIL_L:    next_state = WAIT_TRAIL_L;
             WAIT_TRAIL_L:
-                if (trail_read_valid) next_state = WAIT_TRAIL_R;
+                if (trail_read_valid) next_state = CALC_SENSOR_R_X;
 
+            // Right sensor
+            CALC_SENSOR_R_X: next_state = CALC_SENSOR_R_Y;
+            CALC_SENSOR_R_Y: next_state = READ_TRAIL_R;
+            READ_TRAIL_R:    next_state = WAIT_TRAIL_R;
             WAIT_TRAIL_R:
                 if (trail_read_valid) next_state = SENSORY_DECISION;
 
-            SENSORY_DECISION:
-                next_state = CALC_MOVE;
+            // Decision and movement
+            SENSORY_DECISION: next_state = CALC_MOVE_X;
+            CALC_MOVE_X:      next_state = CALC_MOVE_Y;
+            CALC_MOVE_Y:      next_state = UPDATE_POS;
+            UPDATE_POS:       next_state = WRITE_TRAIL;
+            WRITE_TRAIL:      next_state = DONE_STATE;
+            DONE_STATE:       next_state = IDLE;
 
-            CALC_MOVE:
-                next_state = WAIT_TRIG_MOVE;
-
-            WAIT_TRIG_MOVE:
-                next_state = UPDATE_POS;
-
-            UPDATE_POS:
-                next_state = WRITE_TRAIL;
-
-            WRITE_TRAIL:
-                next_state = DONE_STATE;
-
-            DONE_STATE:
-                next_state = IDLE;
-
-            default:
-                next_state = IDLE;
+            default: next_state = IDLE;
         endcase
     end
 
@@ -228,10 +222,13 @@ module agent_processor #(
             new_angle <= '0;
             new_x <= '0;
             new_y <= '0;
+            dx <= '0;
+            dy <= '0;
+            sensor_x <= '0;
+            sensor_y <= '0;
             trail_forward <= '0;
             trail_left <= '0;
             trail_right <= '0;
-            sensor_phase <= '0;
         end
         else begin
             case (state)
@@ -240,70 +237,101 @@ module agent_processor #(
                         x_reg <= agent_x_in;
                         y_reg <= agent_y_in;
                         angle_reg <= agent_angle_in;
-                        sensor_phase <= 2'd0;
                     end
+                end
+
+                // Forward sensor calculation
+                CALC_SENSOR_F_X: begin
+                    // dx = cos(angle) * sensor_distance (mult_result)
+                    sensor_x <= x_reg + mult_result;
+                end
+
+                CALC_SENSOR_F_Y: begin
+                    // dy = sin(angle) * sensor_distance
+                    sensor_y <= y_reg + mult_result;
                 end
 
                 WAIT_TRAIL_F: begin
                     if (trail_read_valid) begin
-                        trail_forward <= trail_read_data;
-                        sensor_phase <= 2'd1;
+                        trail_forward <= trail_read_data[7:0];
                     end
+                end
+
+                // Left sensor calculation
+                CALC_SENSOR_L_X: begin
+                    sensor_x <= x_reg + mult_result;
+                end
+
+                CALC_SENSOR_L_Y: begin
+                    sensor_y <= y_reg + mult_result;
                 end
 
                 WAIT_TRAIL_L: begin
                     if (trail_read_valid) begin
-                        trail_left <= trail_read_data;
-                        sensor_phase <= 2'd2;
+                        trail_left <= trail_read_data[7:0];
                     end
+                end
+
+                // Right sensor calculation
+                CALC_SENSOR_R_X: begin
+                    sensor_x <= x_reg + mult_result;
+                end
+
+                CALC_SENSOR_R_Y: begin
+                    sensor_y <= y_reg + mult_result;
                 end
 
                 WAIT_TRAIL_R: begin
                     if (trail_read_valid) begin
-                        trail_right <= trail_read_data;
+                        trail_right <= trail_read_data[7:0];
                     end
                 end
 
                 SENSORY_DECISION: begin
-                    // Implement sensory decision logic
-                    // Case 1: F > FL and F > FR -> no change
-                    // Case 2: F < FL and F < FR -> random turn
-                    // Case 3: FL < FR -> turn right
-                    // Case 4: FR < FL -> turn left
+                    // Sensory decision logic
                     if ((trail_forward > trail_left) && (trail_forward > trail_right)) begin
-                        // Stay facing same direction
+                        // Forward is best - no change
                         new_angle <= angle_reg;
                     end
                     else if ((trail_forward < trail_left) && (trail_forward < trail_right)) begin
-                        // Random turn
+                        // Forward is worst - random turn
                         new_angle <= lfsr_bit ? (angle_reg + turn_speed) : (angle_reg - turn_speed);
                     end
-                    else if (trail_left < trail_right) begin
-                        // Turn right
-                        new_angle <= angle_reg - turn_speed;
-                    end
-                    else if (trail_right < trail_left) begin
-                        // Turn left
+                    else if (trail_left > trail_right) begin
+                        // Left is better - turn left
                         new_angle <= angle_reg + turn_speed;
                     end
                     else begin
-                        new_angle <= angle_reg;
+                        // Right is better - turn right
+                        new_angle <= angle_reg - turn_speed;
                     end
                 end
 
+                CALC_MOVE_X: begin
+                    // dx = cos(new_angle) * move_speed
+                    dx <= mult_result;
+                end
+
+                CALC_MOVE_Y: begin
+                    // dy = sin(new_angle) * move_speed
+                    dy <= mult_result;
+                end
+
                 UPDATE_POS: begin
-                    // new_x = x + cos(angle) * speed
-                    // new_y = y + sin(angle) * speed
-                    // mult_result has cos*speed or sin*speed
-                    new_x <= x_reg + mult_result;  // Will need proper sequencing
-                    new_y <= y_reg + mult_result;
+                    // Apply movement
+                    new_x <= x_reg + dx;
+                    new_y <= y_reg + dy;
 
                     // Wrap positions
-                    if (new_x < 0) new_x <= new_x + WIDTH_FP;
-                    else if (new_x >= WIDTH_FP) new_x <= new_x - WIDTH_FP;
+                    if ((x_reg + dx) < 0)
+                        new_x <= x_reg + dx + WIDTH_FP;
+                    else if ((x_reg + dx) >= WIDTH_FP)
+                        new_x <= x_reg + dx - WIDTH_FP;
 
-                    if (new_y < 0) new_y <= new_y + HEIGHT_FP;
-                    else if (new_y >= HEIGHT_FP) new_y <= new_y - HEIGHT_FP;
+                    if ((y_reg + dy) < 0)
+                        new_y <= y_reg + dy + HEIGHT_FP;
+                    else if ((y_reg + dy) >= HEIGHT_FP)
+                        new_y <= y_reg + dy - HEIGHT_FP;
                 end
 
                 default: ;
@@ -314,29 +342,24 @@ module agent_processor #(
     // Trig angle index selection
     always_comb begin
         case (state)
-            CALC_SENSORS, WAIT_TRIG_F: begin
-                case (sensor_phase)
-                    2'd0: sense_angle = angle_reg;                    // Forward
-                    2'd1: sense_angle = angle_reg + sensor_angle;     // Left
-                    2'd2: sense_angle = angle_reg - sensor_angle;     // Right
-                    default: sense_angle = angle_reg;
-                endcase
-            end
-            CALC_MOVE, WAIT_TRIG_MOVE:
-                sense_angle = new_angle;
+            CALC_SENSOR_F_X, CALC_SENSOR_F_Y:
+                current_sense_angle = angle_reg;
+            CALC_SENSOR_L_X, CALC_SENSOR_L_Y:
+                current_sense_angle = angle_reg + sensor_angle;
+            CALC_SENSOR_R_X, CALC_SENSOR_R_Y:
+                current_sense_angle = angle_reg - sensor_angle;
+            CALC_MOVE_X, CALC_MOVE_Y:
+                current_sense_angle = new_angle;
             default:
-                sense_angle = angle_reg;
+                current_sense_angle = angle_reg;
         endcase
-        trig_angle_idx = angle_to_idx(sense_angle);
+        trig_angle_idx = angle_to_idx(current_sense_angle);
     end
 
     // Trail read address
     always_comb begin
-        // Sensor position: pos + cos/sin(angle) * distance
-        sense_x = x_reg + mult_result;  // Simplified - needs proper calc
-        sense_y = y_reg + mult_result;
-        trail_read_x = fp_to_pixel_x(sense_x);
-        trail_read_y = fp_to_pixel_y(sense_y);
+        trail_read_x = fp_to_pixel_x(sensor_x);
+        trail_read_y = fp_to_pixel_y(sensor_y);
     end
 
     // Output assignments
@@ -347,7 +370,7 @@ module agent_processor #(
     assign agent_angle_out = new_angle;
     assign agent_valid_out = (state == DONE_STATE);
 
-    assign trail_read_en = (state == READ_TRAIL_F) || (state == READ_TRAIL_LR);
+    assign trail_read_en = (state == READ_TRAIL_F) || (state == READ_TRAIL_L) || (state == READ_TRAIL_R);
     assign trail_write_x = fp_to_pixel_x(new_x);
     assign trail_write_y = fp_to_pixel_y(new_y);
     assign trail_write_data = deposit_amount;
@@ -357,13 +380,24 @@ module agent_processor #(
 
     // Multiplier input selection
     always_comb begin
+        mult_b = '0;
         case (state)
-            CALC_SENSORS, READ_TRAIL_F, READ_TRAIL_LR: begin
-                mult_a = cos_val;  // or sin_val depending on x/y
+            // Sensor calculations
+            CALC_SENSOR_F_X, CALC_SENSOR_L_X, CALC_SENSOR_R_X: begin
+                mult_a = cos_val;
                 mult_b = sensor_distance;
             end
-            CALC_MOVE, UPDATE_POS: begin
-                mult_a = cos_val;  // or sin_val
+            CALC_SENSOR_F_Y, CALC_SENSOR_L_Y, CALC_SENSOR_R_Y: begin
+                mult_a = sin_val;
+                mult_b = sensor_distance;
+            end
+            // Movement calculations
+            CALC_MOVE_X: begin
+                mult_a = cos_val;
+                mult_b = move_speed;
+            end
+            CALC_MOVE_Y: begin
+                mult_a = sin_val;
                 mult_b = move_speed;
             end
             default: begin

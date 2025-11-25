@@ -47,9 +47,6 @@ set_property -dict { PACKAGE_PIN W19  IOSTANDARD LVCMOS33 } [get_ports btnl]
 set_property -dict { PACKAGE_PIN T17  IOSTANDARD LVCMOS33 } [get_ports btnr]
 set_property -dict { PACKAGE_PIN U17  IOSTANDARD LVCMOS33 } [get_ports btnd]
 
-## Reset (directly active high button, active low for design)
-# Using BTNC as start/reset
-
 ## VGA
 set_property -dict { PACKAGE_PIN G19  IOSTANDARD LVCMOS33 } [get_ports {vga_r[0]}]
 set_property -dict { PACKAGE_PIN H19  IOSTANDARD LVCMOS33 } [get_ports {vga_r[1]}]
