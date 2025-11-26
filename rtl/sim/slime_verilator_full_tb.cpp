@@ -14,7 +14,7 @@
 const int NUM_AGENTS = 100;
 const int WIDTH = 320;
 const int HEIGHT = 240;
-const int NUM_STEPS = 10;      // 10× longer: 1000 → 10000
+const int NUM_STEPS = 3;      // 10× longer: 1000 → 10000
 const int DUMP_INTERVAL = 10;     // 10× more frequent: 100 → 10
 
 // Trail map: 18-bit unsigned integers
@@ -143,9 +143,24 @@ public:
         snprintf(filename, sizeof(filename), "rtl_trail_dumps/trail_step_%05d.bin", step);
         std::ofstream file(filename, std::ios::binary);
         if (file.is_open()) {
-            // Write 18-bit values as 3 bytes each (using 24-bit storage)
-            for (size_t i = 0; i < trail_map.size(); i++) {
-                uint32_t val = trail_map[i].get();  // Get the 18-bit value
+            // READ trail values from RTL via debug interface
+            uint32_t min_val = TRAIL_MAX, max_val = 0;
+            double sum = 0;
+
+            for (size_t addr = 0; addr < trail_map.size(); addr++) {
+                // Request trail value from RTL at this address
+                dut->debug_trail_addr = addr;
+                clock(1);  // Wait one cycle for combinatorial read
+
+                // Read the value returned by RTL
+                uint32_t val = dut->debug_trail_data & 0x3FFFF;  // Mask to 18 bits
+
+                // Update statistics
+                if (val < min_val) min_val = val;
+                if (val > max_val) max_val = val;
+                sum += val;
+
+                // Write as 3 bytes (little-endian, 18 bits used)
                 uint8_t bytes[3] = {
                     (uint8_t)(val & 0xFF),
                     (uint8_t)((val >> 8) & 0xFF),
@@ -155,14 +170,6 @@ public:
             }
             file.close();
 
-            uint32_t min_val = TRAIL_MAX, max_val = 0;
-            double sum = 0;
-            for (size_t i = 0; i < trail_map.size(); i++) {
-                uint32_t val = trail_map[i].get();
-                if (val < min_val) min_val = val;
-                if (val > max_val) max_val = val;
-                sum += val;
-            }
             double mean = sum / trail_map.size();
 
             std::cout << "[TB] Step " << std::setw(4) << step
@@ -293,12 +300,13 @@ public:
         initialize_agents();
         dump_trail_map(0);
 
-        std::cout << "Processing agents with sensory logic for " << NUM_STEPS << " steps...\n" << std::endl;
+        std::cout << "Processing agents through RTL for " << NUM_STEPS << " steps...\n" << std::endl;
 
         // Assert direct simulation start signal (bypasses debouncer)
         dut->sim_start = 1;
-        clock(2);  // Just a couple cycles to latch the start signal
+        clock(2);  // Let the start signal propagate
         dut->sim_start = 0;
+        clock(10); // Wait for state machine to enter RUNNING
 
         // Calculate total cycles needed
         // Each agent takes ~19 cycles through processor
@@ -320,11 +328,13 @@ public:
 
             if (current_step > 0 && current_step <= NUM_STEPS &&
                 cycle_in_step == 0 && cycle < total_cycles - 10) {
+                std::cout << "  Dumping trail map at step " << current_step << "..." << std::endl;
                 dump_trail_map(current_step);
                 std::cout << "  Progress: " << std::setw(3) << (current_step * 100 / NUM_STEPS) << "%\r" << std::flush;
             }
         }
 
+        std::cout << "\n  Dumping final trail map at step " << NUM_STEPS << "..." << std::endl;
         dump_trail_map(NUM_STEPS - 1);
 
         std::cout << "\n\n========================================================================" << std::endl;

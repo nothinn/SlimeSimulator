@@ -259,6 +259,10 @@ if [[ "$DO_RTL" == true ]]; then
 
     cd "$RTL_SIM_DIR"
 
+    # Copy LUT files needed by trig_lut module
+    cp ../src/sin_lut.hex obj_dir/ 2>/dev/null || true
+    cp ../src/cos_lut.hex obj_dir/ 2>/dev/null || true
+
     # Run simulation with output capture
     if [[ "$VERBOSE" == true ]]; then
         ./obj_dir/slime_verilator_full

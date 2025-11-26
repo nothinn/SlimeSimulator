@@ -44,7 +44,11 @@ module slime_top #(
     output logic [15:0] led,
 
     // Simulation control (for testbench)
-    input  logic sim_start  // Direct start signal for simulation/testbench
+    input  logic sim_start,  // Direct start signal for simulation/testbench
+
+    // Debug interface (for testbench readback)
+    input  logic [18:0] debug_trail_addr,
+    output logic [17:0] debug_trail_data
 );
 
     // =========================================================================
@@ -437,5 +441,10 @@ module slime_top #(
         .trail_we_b(orch_trail_we),
         .done()
     );
+
+    // =========================================================================
+    // Debug Interface - Allow testbench to read trail memory
+    // =========================================================================
+    assign debug_trail_data = trail_mem[debug_trail_addr];
 
 endmodule
