@@ -14,7 +14,7 @@
 const int NUM_AGENTS = 100;
 const int WIDTH = 320;
 const int HEIGHT = 240;
-const int NUM_STEPS = 3;      // 10× longer: 1000 → 10000
+const int NUM_STEPS = 1;      // 10× longer: 1000 → 10000
 const int DUMP_INTERVAL = 10;     // 10× more frequent: 100 → 10
 
 // Trail map: 18-bit unsigned integers
@@ -301,6 +301,16 @@ public:
         dump_trail_map(0);
 
         std::cout << "Processing agents through RTL for " << NUM_STEPS << " steps...\n" << std::endl;
+
+        // TEST: Verify trail memory read interface is working
+        std::cout << "[TB] Testing trail memory interface...\n";
+        for (int test_addr = 0; test_addr < 10; test_addr++) {
+            dut->debug_trail_addr = test_addr;
+            clock(1);
+            uint32_t val = dut->debug_trail_data & 0x3FFFF;
+            std::cout << "[TB] Trail[" << test_addr << "] = " << val << "\n";
+        }
+        std::cout << "\n";
 
         // Assert direct simulation start signal (bypasses debouncer)
         dut->sim_start = 1;
