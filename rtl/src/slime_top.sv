@@ -196,7 +196,12 @@ module slime_top #(
     // Port B (Agent read/write)
     always_ff @(posedge clk_100mhz) begin
         if (trail_we_b) begin
-            trail_mem[trail_addr_b] <= trail_data_b_in;
+            // Accumulate trail (saturating add)
+            if (trail_mem[trail_addr_b] + trail_data_b_in > 18'h3FFFF) begin
+                trail_mem[trail_addr_b] <= 18'h3FFFF;  // Saturate at 18-bit max
+            end else begin
+                trail_mem[trail_addr_b] <= trail_mem[trail_addr_b] + trail_data_b_in;
+            end
         end
         trail_data_b_out <= trail_mem[trail_addr_b];
     end

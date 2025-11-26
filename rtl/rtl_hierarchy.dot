@@ -1,0 +1,88 @@
+digraph RTL_Hierarchy {
+    rankdir=TB;
+    splines=ortho;
+    nodesep=0.5;
+    ranksep=1.0;
+    
+    // Node styling
+    node [shape=box, style="rounded,filled", fillcolor=lightblue, fontname="monospace"];
+    
+    // Top level
+    slime_top [label="slime_top\n[Main Top Module]\nControl, Memory, VGA", fillcolor=lightgreen, fontsize=12, fontweight=bold];
+    
+    // Control Layer (Level 1)
+    node [fillcolor=lightyellow, fontsize=10];
+    debouncer_array [label="debouncer_array\n5 Button Inputs"];
+    lfsr [label="lfsr\n32-bit LFSR\nRandom Generation"];
+    
+    // Processing Layer (Level 1)
+    node [fillcolor=lightcyan, fontsize=10];
+    agent_processor [label="agent_processor\n19-Stage Pipeline\n1000 Parallel Agents"];
+    
+    // Memory System (Level 1)
+    node [fillcolor=lightpink, fontsize=10];
+    trail_mem [label="Trail Memory\n320×240 × 8-bit\nBRAM"];
+    agent_mem [label="Agent Memory\n1000 × 75-bit\nBRAM"];
+    
+    // Output Layer (Level 1)
+    node [fillcolor=lightcyan, fontsize=10];
+    vga_controller [label="vga_controller\n640×480@60Hz\nVGA Timing"];
+    
+    // Agent Processor Submodules (Level 2)
+    node [fillcolor=lavender, fontsize=9];
+    trig_lut [label="trig_lut\n1024-entry\nSin/Cos LUT"];
+    fixed_point [label="fixed_point_mult\nQ12.12 Multiplier\n(×3 instances)"];
+    
+    // Edges: Top to Level 1
+    slime_top -> debouncer_array;
+    slime_top -> lfsr;
+    slime_top -> agent_processor;
+    slime_top -> trail_mem;
+    slime_top -> agent_mem;
+    slime_top -> vga_controller;
+    
+    // Edges: Agent Processor to Level 2
+    agent_processor -> trig_lut;
+    agent_processor -> fixed_point;
+    
+    // Edges: Agent Processor to Memory
+    agent_processor -> trail_mem;
+    agent_processor -> agent_mem;
+    agent_processor -> lfsr;
+    
+    // Edges: VGA to Memory
+    vga_controller -> trail_mem;
+    
+    // Clusters for visual grouping
+    subgraph cluster_control {
+        label="Control & Input";
+        style=dashed;
+        color=gray;
+        debouncer_array;
+    }
+    
+    subgraph cluster_processing {
+        label="Processing";
+        style=dashed;
+        color=gray;
+        agent_processor;
+        trig_lut;
+        fixed_point;
+        lfsr;
+    }
+    
+    subgraph cluster_memory {
+        label="Memory System";
+        style=dashed;
+        color=gray;
+        trail_mem;
+        agent_mem;
+    }
+    
+    subgraph cluster_output {
+        label="Output";
+        style=dashed;
+        color=gray;
+        vga_controller;
+    }
+}

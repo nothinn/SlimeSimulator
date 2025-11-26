@@ -1,0 +1,51 @@
+# Verilator Makefile for Slime Simulator RTL Simulation
+
+VERILATOR = verilator
+VERILATOR_FLAGS = --cc --trace --build -j 4 -O3 -Wno-WIDTH -Wno-WIDTHTRUNC
+
+RTL_TOP = ../src/slime_top.sv
+RTL_SOURCES = \
+	../src/slime_top.sv \
+	../src/agent_orchestrator.sv \
+	../src/agent_processor.sv \
+	../src/lfsr.sv \
+	../src/fixed_point_mult.sv \
+	../src/trig_lut.sv \
+	../src/debouncer.sv \
+	../src/vga_controller.sv
+
+TB_SOURCES = slime_verilator_full_tb.cpp
+BUILD_DIR = obj_dir_agent
+BIN = $(BUILD_DIR)/Vslime_top_agent
+
+all: sim
+
+sim: $(RTL_SOURCES) $(TB_SOURCES)
+	@echo "========================================================================="
+	@echo "  Compiling Slime Simulator RTL with Verilator"
+	@echo "========================================================================="
+	@echo ""
+	@echo "Verilator flags: $(VERILATOR_FLAGS)"
+	@echo "RTL sources:"
+	@for src in $(RTL_SOURCES); do echo "  - $$src"; done
+	@echo "Testbench: $(TB_SOURCES)"
+	@echo ""
+	@$(VERILATOR) $(VERILATOR_FLAGS) \
+		--top-module slime_top \
+		--Mdir $(BUILD_DIR) \
+		-CFLAGS "-std=c++17" \
+		$(RTL_SOURCES) \
+		$(TB_SOURCES)
+	@echo ""
+	@echo "Binary: $(BIN)"
+
+run: sim
+	@echo ""
+	@echo "Running RTL simulation..."
+	@echo ""
+	@$(BIN)
+
+clean:
+	rm -rf $(BUILD_DIR)
+
+.PHONY: all sim run clean

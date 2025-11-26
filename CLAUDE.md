@@ -22,10 +22,28 @@ python slime_simulator.py --display
 python rtl/sim/python_reference.py --steps 100 -o reference.bin
 ```
 
-### RTL Simulation & Testing
+### RTL Simulation & Testing (Verilator)
+```bash
+# Full RTL vs Python comparison (100k agents, 10k steps, 800×600 resolution)
+./run_extended_comparison.sh
+
+# Quick test with smaller parameters (faster)
+./run_extended_comparison.sh --resolution 320x240 --agents 1000 --steps 100
+
+# Custom configuration
+./run_extended_comparison.sh --resolution 640x480 --agents 50000 --steps 1000
+
+# Skip compilation, test with existing binary
+./run_extended_comparison.sh --agents 100000 --no-build
+
+# Skip both build and RTL simulation (only Python + image generation)
+./run_extended_comparison.sh --steps 100 --no-build --no-rtl
+```
+
+### Legacy Cocotb Unit Tests
 ```bash
 cd rtl/sim
-source ../../.venv/bin/activate  # Activate cocotb environment
+source ../../.venv/bin/activate
 
 make test_all           # Run all module tests (14 tests)
 make test_comparison    # RTL vs Python comparison tests (4 tests)
@@ -269,6 +287,38 @@ rtl/
 3. Adjust memory sizes if needed (trail map is resolution²)
 4. Update test cases in `test_vga.py`
 
+### Using run_extended_comparison.sh for Testing
+The `run_extended_comparison.sh` script provides a parametrized interface for RTL vs Python comparison:
+
+**Parameters:**
+- `--resolution WIDTHxHEIGHT` - Simulation resolution (default: 800x600)
+- `--agents NUM` - Number of agents to simulate (default: 100000)
+- `--steps NUM` - Number of simulation steps (default: 10000)
+- `--no-build` - Skip Verilator compilation (use existing binary)
+- `--no-rtl` - Skip RTL simulation (use existing trail dumps)
+- `--help` - Show usage information
+
+**Examples:**
+```bash
+# Full comparison (100k agents, 10k steps, 800×600)
+./run_extended_comparison.sh
+
+# Quick test (1k agents, 100 steps)
+./run_extended_comparison.sh --resolution 320x240 --agents 1000 --steps 100
+
+# Test custom configuration
+./run_extended_comparison.sh --resolution 640x480 --agents 50000 --steps 1000
+
+# Fast iteration (skip build and RTL, only compare images)
+./run_extended_comparison.sh --agents 100000 --steps 100 --no-build --no-rtl
+```
+
+**Output:**
+- `rtl_comparison_WxH_NagentsxNsteps/` - Output directory
+  - `comparison_*.png` - Side-by-side comparison frames (Python left, RTL right)
+  - `comparison_stats.json` - Statistics for each comparison frame
+- Trail dumps in `rtl/sim/rtl_trail_dumps/` for reference
+
 ## Current Project Status
 
 **Branch:** `feature/python-simulator`
@@ -276,18 +326,26 @@ rtl/
 **Completed:**
 - ✅ Python reference simulator with bit-exact arithmetic
 - ✅ All core RTL modules verified (LFSR, fixed-point, trig, VGA)
-- ✅ 14/14 component tests passing
-- ✅ Cocotb test infrastructure
+- ✅ 14/14 component tests passing (Cocotb)
+- ✅ Verilator full RTL simulation with 100k agents
+- ✅ Parametrized comparison script (run_extended_comparison.sh)
+  - Supports configurable resolution (320×240 to 1024×768+)
+  - Supports configurable agent count (1k to 500k+)
+  - Supports configurable step count (any duration)
+  - Generates side-by-side comparison frames
+- ✅ 18-bit trail map implementation
+- ✅ Circle spawn pattern matching Python reference
+- ✅ Trail decay (0.95 multiplier per step)
 - ✅ Vivado build flow validated
 - ✅ Pin constraints for Basys3
 
 **In Progress:**
-- ⏳ Full end-to-end FPGA testing
-- ⏳ Trail diffusion/decay kernel implementation
+- ⏳ Trail diffusion/blur kernel implementation
+- ⏳ Full end-to-end FPGA hardware testing
 
 **Not Yet Implemented:**
-- 🔲 Trail decay/diffusion (blur effect)
-- 🔲 Full integration test on hardware
+- 🔲 Trail diffusion (blur effect)
+- 🔲 Full integration test on Basys3 hardware
 - 🔲 UART parameter update interface
 
 ## Python Virtual Environment
@@ -321,12 +379,21 @@ source .venv/bin/activate
 
 ## Typical Development Workflow
 
+### For RTL vs Python Comparison (Recommended)
 1. **Make changes** to Python reference or RTL module
-2. **Run relevant tests:** `cd rtl/sim && make test_<module>`
-3. **Validate against Python:** `make test_comparison`
-4. **Build RTL** (if changes affect synthesis): `vivado -mode batch -source build_vivado.tcl`
-5. **Program FPGA** (if testing on hardware): `vivado -mode batch -source program_fpga.tcl ...`
-6. **Verify output** via VGA display or captured image
+2. **Run comparison suite:** `./run_extended_comparison.sh [--steps 100 for quick test]`
+3. **Review results:**
+   - Visual comparison in `rtl_comparison_*.../comparison_*.png`
+   - Statistics in `rtl_comparison_*.../comparison_stats.json`
+4. **Iterate:** Use `--no-build --no-rtl` for fast parameter testing
+5. **Build full FPGA** (if synthesis changes): `vivado -mode batch -source build_vivado.tcl`
+6. **Program FPGA** (if testing on hardware): `vivado -mode batch -source program_fpga.tcl ...`
+
+### For Component Unit Tests (Legacy)
+1. **Make changes** to specific module
+2. **Run unit tests:** `cd rtl/sim && make test_<module>`
+3. **Run comparison tests:** `make test_comparison`
+4. **Validate Python reference** matches expected behavior
 
 ## Performance Expectations
 
@@ -358,6 +425,15 @@ Run `make test_vga` to verify hsync/vsync signals match 640×480@60Hz specificat
 
 ## Key References
 
+### Project Documentation
+- **RUN_COMPARISON_QUICK_START.md** - Quick reference for `run_extended_comparison.sh` usage and options
+- **SCRIPT_CONFIGURATION_GUIDE.md** - Detailed parameter guide with memory/disk/time estimates
+- **SCRIPT_EXAMPLES.md** - 20+ copy-paste examples for every testing scenario
+- **EXTENDED_COMPARISON_GUIDE.md** - Complete guide to the extended comparison workflow
+- **COMPARISON_ARCHITECTURE.md** - Technical deep-dive on RTL vs Python comparison pipeline
+- **PARAMETRIZED_SCRIPT_SUMMARY.md** - Overview of parametrized script implementation
+
+### External References
 - **Sebastian Lague Video:** https://www.youtube.com/watch?v=X-iSQQgOd1A
 - **Academic Paper:** https://uwe-repository.worktribe.com/output/980579
 - **Basys3 Reference Manual:** Pin assignments documented in `constraints/basys3.xdc`
@@ -365,7 +441,11 @@ Run `make test_vga` to verify hsync/vsync signals match 640×480@60Hz specificat
 
 ## Important Notes
 
-- **Decay not implemented:** Trail map doesn't currently decay. Future enhancement required.
-- **Memory-limited resolution:** Limited to ~320×240 by BRAM on Basys3. Use external SRAM for higher resolution.
-- **Icarus Verilog limitations:** Full integration tests require Vivado or Verilator; Icarus insufficient for agent_processor.
+- **Decay implemented:** Trail decay (0.95 multiplier) now active. Diffusion/blur still pending.
+- **18-bit trail maps:** Trail memory upgraded from 8-bit to 18-bit for better precision and visibility.
+- **Parametrized comparison:** Use `./run_extended_comparison.sh` for all RTL vs Python testing (replaces legacy cocotb make commands).
+- **Memory-limited resolution on Basys3:** Limited to ~320×240 by BRAM on Basys3. Use external SRAM for higher resolution.
+- **Verilator for integration tests:** Full integration tests use Verilator (100k agents possible). Icarus insufficient for agent_processor.
+- **Circle spawn pattern:** Agents initialize on circle (40% canvas radius) pointing inward, matching Python reference exactly.
 - **Deterministic simulation:** LFSR provides repeatable (not random) behavior. Seed from button input for variation.
+- **Bit-exact reference:** Python `slime_simulator.py` uses Q12.12 fixed-point arithmetic identical to RTL for perfect validation.
