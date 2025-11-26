@@ -41,7 +41,10 @@ module slime_top #(
     output logic vga_vs,
 
     // LEDs for status
-    output logic [15:0] led
+    output logic [15:0] led,
+
+    // Simulation control (for testbench)
+    input  logic sim_start  // Direct start signal for simulation/testbench
 );
 
     // =========================================================================
@@ -260,6 +263,14 @@ module slime_top #(
     (* mark_debug = "true" *) logic [$clog2(WIDTH*HEIGHT)-1:0] agent_idx;  // Iterate through all memory locations
     (* mark_debug = "true" *) logic sim_running;
 
+    // Decay multiplier (0.95 in fixed-point Q12.12)
+    localparam FP_DECAY = 25'h_0F33;  // 0.95 * 4096 ≈ 3891 = 0x0F33
+
+    // Temporary registers for decay
+    logic [17:0] trail_val_before_decay;
+    logic [35:0] trail_val_after_mult;  // 18 + 25 bits for multiply result
+    logic [17:0] trail_val_decayed;
+
     always_ff @(posedge clk_100mhz or negedge rst_n) begin
         if (!rst_n) begin
             sim_state <= SIM_IDLE;
@@ -302,9 +313,27 @@ module slime_top #(
                 end
 
                 SIM_DIFFUSE: begin
-                    // Apply diffusion and decay to trail map
-                    // (Simplified - would need diffusion kernel)
-                    sim_state <= SIM_WAIT_FRAME;
+                    // Apply decay to trail map (one pixel per cycle)
+                    if (!sim_pause) begin
+                        // Read current trail value
+                        trail_val_before_decay <= trail_mem[agent_idx];
+
+                        // Multiply by decay factor (shift result for fixed-point)
+                        // trail_mem[i] * FP_DECAY >> 12
+                        trail_val_after_mult <= trail_mem[agent_idx] * FP_DECAY;
+                        trail_val_decayed <= (trail_mem[agent_idx] * FP_DECAY) >> FP_FRAC_BITS;
+
+                        // Write back decayed value
+                        trail_mem[agent_idx] <= (trail_mem[agent_idx] * FP_DECAY) >> FP_FRAC_BITS;
+
+                        // Advance to next pixel
+                        if (agent_idx == (WIDTH * HEIGHT - 1)) begin
+                            agent_idx <= '0;
+                            sim_state <= SIM_WAIT_FRAME;
+                        end else begin
+                            agent_idx <= agent_idx + 1'b1;
+                        end
+                    end
                 end
 
                 SIM_WAIT_FRAME: begin
@@ -379,6 +408,10 @@ module slime_top #(
     assign trail_we_b = use_orchestrator ? orch_trail_we : pattern_trail_we;
 
     // Agent Coordinator - Orchestrates real agent simulation
+    // Use sim_start if provided (for testbench), otherwise use btn_start
+    logic coordinator_start;
+    assign coordinator_start = sim_start | btn_start;
+
     agent_coordinator #(
         .NUM_AGENTS(NUM_AGENTS),
         .FP_INT_BITS(FP_INT_BITS),
@@ -390,7 +423,7 @@ module slime_top #(
     ) u_coordinator (
         .clk(clk_100mhz),
         .rst_n(rst_n),
-        .start(btn_start),
+        .start(coordinator_start),
         .pause(sim_pause),
         .lfsr_state(lfsr_state),
         .sensor_angle(SENSOR_ANGLE),

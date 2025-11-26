@@ -295,22 +295,33 @@ public:
 
         std::cout << "Processing agents with sensory logic for " << NUM_STEPS << " steps...\n" << std::endl;
 
-        for (int sim_step = 1; sim_step < NUM_STEPS; sim_step++) {
-            // Apply trail decay before agent processing (matches Python order)
-            apply_decay();
+        // Assert direct simulation start signal (bypasses debouncer)
+        dut->sim_start = 1;
+        clock(2);  // Just a couple cycles to latch the start signal
+        dut->sim_start = 0;
 
-            // Process all agents with actual sensory logic
-            for (int agent_id = 0; agent_id < NUM_AGENTS; agent_id++) {
-                process_agent(agent_id);
-            }
+        // Calculate total cycles needed
+        // Each agent takes ~19 cycles through processor
+        // 100 agents × 19 cycles = 1900 cycles per step
+        // Plus overhead for state machine transitions
+        int cycles_per_step = NUM_AGENTS * 25;  // Conservative estimate
+        int total_cycles = NUM_STEPS * cycles_per_step;
 
-            // Clock RTL a minimal amount (just for housekeeping)
-            clock(10);
+        std::cout << "Clocking RTL for " << total_cycles << " cycles ("
+                  << NUM_STEPS << " steps × " << cycles_per_step << " cycles/step)...\n" << std::endl;
 
-            // Dump at intervals
-            if (sim_step % DUMP_INTERVAL == 0) {
-                dump_trail_map(sim_step);
-                std::cout << "  Progress: " << std::setw(3) << (sim_step * 100 / NUM_STEPS) << "%\r" << std::flush;
+        // Let RTL run and process agents through the real processor
+        for (int cycle = 0; cycle < total_cycles; cycle++) {
+            clock(1);
+
+            // Dump trail map at step boundaries (every cycles_per_step cycles)
+            int current_step = (cycle + 1) / cycles_per_step;
+            int cycle_in_step = (cycle + 1) % cycles_per_step;
+
+            if (current_step > 0 && current_step <= NUM_STEPS &&
+                cycle_in_step == 0 && cycle < total_cycles - 10) {
+                dump_trail_map(current_step);
+                std::cout << "  Progress: " << std::setw(3) << (current_step * 100 / NUM_STEPS) << "%\r" << std::flush;
             }
         }
 
