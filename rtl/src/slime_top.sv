@@ -180,20 +180,20 @@ module slime_top #(
 
     logic [18:0] trail_addr_a;
     (* mark_debug = "true" *) logic [18:0] trail_addr_b;  // Debug: agent write address
-    logic [7:0]  trail_data_a;
-    (* mark_debug = "true" *) logic [7:0]  trail_data_b_out;  // Debug: agent read data
-    (* mark_debug = "true" *) logic [7:0]  trail_data_b_in;   // Debug: agent write data
+    logic [17:0] trail_data_a;
+    (* mark_debug = "true" *) logic [17:0] trail_data_b_out;  // Debug: agent read data
+    (* mark_debug = "true" *) logic [17:0] trail_data_b_in;   // Debug: agent write data
     (* mark_debug = "true" *) logic        trail_we_b;         // Debug: agent write enable
 
-    // Simple dual-port RAM
-    logic [7:0] trail_mem [0:WIDTH*HEIGHT-1];
+    // Simple dual-port RAM - 18-bit trail values
+    logic [17:0] trail_mem [0:WIDTH*HEIGHT-1];
 
     // Port A (VGA read)
     always_ff @(posedge clk_25mhz) begin
         trail_data_a <= trail_mem[trail_addr_a];
     end
 
-    // Port B (Agent read/write)
+    // Port B (Agent read/write with accumulation)
     always_ff @(posedge clk_100mhz) begin
         if (trail_we_b) begin
             // Accumulate trail (saturating add)
@@ -351,9 +351,9 @@ module slime_top #(
     // This bridges to the full agent_processor pipeline for future expansion
 
     logic [18:0] orch_trail_addr;
-    logic [7:0]  orch_trail_data;
+    logic [17:0] orch_trail_data;
     logic        orch_trail_we;
-    logic [7:0]  orch_trail_read_data;
+    logic [17:0] orch_trail_read_data;
 
     logic [18:0] pattern_trail_addr;
     logic [7:0]  pattern_trail_data;
@@ -375,33 +375,34 @@ module slime_top #(
 
     // Final mux: select between pattern generator and orchestrator
     assign trail_addr_b = use_orchestrator ? orch_trail_addr : pattern_trail_addr;
-    assign trail_data_b_in = use_orchestrator ? orch_trail_data : pattern_trail_data;
+    assign trail_data_b_in = use_orchestrator ? orch_trail_data : {{10{1'b0}}, pattern_trail_data};
     assign trail_we_b = use_orchestrator ? orch_trail_we : pattern_trail_we;
 
-    // Orchestrator instance - ENABLED for agent-based simulation
-    agent_orchestrator #(
-        .NUM_AGENTS(100),
+    // Agent Coordinator - Orchestrates real agent simulation
+    agent_coordinator #(
+        .NUM_AGENTS(NUM_AGENTS),
         .FP_INT_BITS(FP_INT_BITS),
         .FP_FRAC_BITS(FP_FRAC_BITS),
         .FP_TOTAL(FP_TOTAL),
         .TRIG_BITS(TRIG_BITS),
         .WIDTH(WIDTH),
         .HEIGHT(HEIGHT)
-    ) u_orchestrator (
+    ) u_coordinator (
         .clk(clk_100mhz),
         .rst_n(rst_n),
         .start(btn_start),
+        .pause(sim_pause),
+        .lfsr_state(lfsr_state),
         .sensor_angle(SENSOR_ANGLE),
         .sensor_distance(SENSOR_DISTANCE),
         .turn_speed(DEFAULT_TURN_SPEED),
         .move_speed(current_move_speed),
         .deposit_amount(DEPOSIT_AMOUNT),
-        .done(),
-        .lfsr_state(lfsr_state),
+        .trail_data_b_out(orch_trail_read_data),
         .trail_addr_b(orch_trail_addr),
         .trail_data_b_in(orch_trail_data),
         .trail_we_b(orch_trail_we),
-        .trail_data_b_out(orch_trail_read_data)
+        .done()
     );
 
 endmodule
