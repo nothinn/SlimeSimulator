@@ -37,7 +37,12 @@ module agent_coordinator #(
     // FIX #3: Export LFSR enable signal for synchronized stepping
     output logic lfsr_en_request,
 
-    output logic done
+    output logic done,
+
+    // Agent debug interface (for initialization validation)
+    input  logic [9:0]  debug_agent_idx,     // Agent index (0-999)
+    input  logic [1:0]  debug_agent_sel,     // 0=x, 1=y, 2=angle
+    output logic signed [FP_TOTAL-1:0] debug_agent_data     // Agent state output
 );
 
     // Fixed-point scale
@@ -145,7 +150,8 @@ module agent_coordinator #(
     initial begin
         int i, min_dimension;
         real angle_rad, cos_val, sin_val, radius_real, two_pi;
-        logic signed [FP_TOTAL-1:0] cx, cy, x, y, radius_fp, angle_fp, pi_fp;
+        logic signed [FP_TOTAL-1:0] cx, cy, x, y, radius_fp, angle_fp, pi_fp, two_pi_fp;
+        logic signed [FP_TOTAL-1:0] spawn_angle_fp;
 
         // Center canvas
         cx = (WIDTH * FP_SCALE) / 2;
@@ -158,6 +164,7 @@ module agent_coordinator #(
         radius_real = min_dimension * 0.4;
         pi_fp = $rtoi(3.14159265359 * FP_SCALE);
         two_pi = 2.0 * 3.14159265359;
+        two_pi_fp = $rtoi(two_pi * FP_SCALE);
 
         for (i = 0; i < NUM_AGENTS; i = i + 1) begin
             // Generate angle uniformly around circle: angle = 2π * i / NUM_AGENTS
@@ -175,7 +182,15 @@ module agent_coordinator #(
             agent_y[i] = y;
 
             // Agent angle = spawn_angle + π (pointing toward center, matching Python)
-            angle_fp = $rtoi(angle_rad * FP_SCALE) + pi_fp;
+            // CRITICAL FIX: Wrap angle to [0, 2π) to match Python behavior
+            spawn_angle_fp = $rtoi(angle_rad * FP_SCALE);
+            angle_fp = spawn_angle_fp + pi_fp;
+
+            // Normalize to [0, 2π) - essential for bottom half of circle
+            if (angle_fp >= two_pi_fp) begin
+                angle_fp = angle_fp - two_pi_fp;
+            end
+
             agent_angle[i] = angle_fp;
         end
     end
@@ -357,5 +372,23 @@ module agent_coordinator #(
 
     // FIX #3: Export LFSR enable request signal
     assign lfsr_en_request = proc_lfsr_en;
+
+    // =========================================================================
+    // Agent Debug Interface - Combinatorial agent memory readback
+    // =========================================================================
+    // Allow testbench to read agent state for validation without advancing simulation
+    // debug_agent_sel: 0=x, 1=y, 2=angle
+
+    logic [AGENT_COUNT_LOG-1:0] debug_idx_safe;
+    assign debug_idx_safe = (debug_agent_idx < NUM_AGENTS) ? debug_agent_idx[AGENT_COUNT_LOG-1:0] : '0;
+
+    always_comb begin
+        case (debug_agent_sel)
+            2'b00:   debug_agent_data = agent_x[debug_idx_safe];
+            2'b01:   debug_agent_data = agent_y[debug_idx_safe];
+            2'b10:   debug_agent_data = agent_angle[debug_idx_safe];
+            default: debug_agent_data = '0;
+        endcase
+    end
 
 endmodule

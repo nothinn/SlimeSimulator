@@ -48,7 +48,12 @@ module slime_top #(
 
     // Debug interface (for testbench readback)
     input  logic [18:0] debug_trail_addr,
-    output logic [17:0] debug_trail_data
+    output logic [17:0] debug_trail_data,
+
+    // Agent debug interface (for initialization validation)
+    input  logic [9:0]  debug_agent_idx,     // Agent index (0-999)
+    input  logic [1:0]  debug_agent_sel,     // 0=x, 1=y, 2=angle
+    output logic [24:0] debug_agent_data     // Agent state output
 );
 
     // =========================================================================
@@ -444,13 +449,18 @@ module slime_top #(
         .trail_data_b_in(orch_trail_data),
         .trail_we_b(orch_trail_we),
         .lfsr_en_request(coordinator_lfsr_en),
-        .done()
+        .done(),
+        // Agent debug interface
+        .debug_agent_idx(debug_agent_idx),
+        .debug_agent_sel(debug_agent_sel),
+        .debug_agent_data(debug_agent_data)
     );
 
     // =========================================================================
-    // Debug Interface - Allow testbench to read trail memory
+    // Debug Interface - Allow testbench to read trail memory and agent state
     // =========================================================================
     // Combinatorial read for fast testbench access without advancing simulation time
     assign debug_trail_data = trail_mem[debug_trail_addr[14:0]];  // Limit index to 15 bits for 76800 address space
+    // Agent debug data is passed through from coordinator
 
 endmodule
