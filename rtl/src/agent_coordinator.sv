@@ -306,19 +306,21 @@ module agent_coordinator #(
     assign write_addr = (write_y * WIDTH) + write_x;
 
     // Mux: prioritize write
-    // Scale trail_write_data from Q12.12 fixed-point to 8-bit integer
-    logic [17:0] trail_write_scaled;
-    assign trail_write_scaled = proc_trail_write_data[FP_TOTAL-1:FP_FRAC_BITS];
+    // Trail memory stores full fixed-point values (18 bits) to match Python
+    // Python deposits 5.0 * 4096 = 20480 in fixed-point format
+    // RTL should do the same, not scale down to integers
+    logic [17:0] trail_write_fp;
+    assign trail_write_fp = proc_trail_write_data[17:0];  // Use lower 18 bits of 25-bit fixed-point
 
     assign trail_addr_b = proc_trail_write_en ? write_addr : read_addr;
-    assign trail_data_b_in = proc_trail_write_en ? trail_write_scaled : 18'h0;
+    assign trail_data_b_in = proc_trail_write_en ? trail_write_fp : 18'h0;
     assign trail_we_b = proc_trail_write_en;
 
     // DEBUG: Monitor trail writes
     always_ff @(posedge clk) begin
         if (proc_trail_write_en) begin
             $display("[COORD] Trail write: addr=%0d (%0d,%0d) data=%0d (from agent[%0d])",
-                write_addr, write_x, write_y, trail_write_scaled, current_agent_idx);
+                write_addr, write_x, write_y, trail_write_fp, current_agent_idx);
         end
     end
 
