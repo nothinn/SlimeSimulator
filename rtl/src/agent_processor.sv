@@ -143,9 +143,15 @@ module agent_processor #(
     endfunction
 
     // Position to pixel coordinate
+    // FIX #2: Truncate toward zero (Python semantics), not toward -∞ (arithmetic shift)
     function automatic [9:0] fp_to_pixel_x(input signed [FP_TOTAL-1:0] fp_val);
         logic signed [FP_TOTAL-1:0] pixel;
-        pixel = fp_val >>> FP_FRAC_BITS;  // Arithmetic shift for signed
+        if (fp_val >= 0) begin
+            pixel = fp_val >> FP_FRAC_BITS;  // Logical shift for positive
+        end else begin
+            // For negative: truncate toward zero by negating, shifting, negating back
+            pixel = -((-fp_val - 1) >> FP_FRAC_BITS) - 1;
+        end
         // Wrap to [0, WIDTH)
         if (pixel < 0) pixel = pixel + WIDTH;
         if (pixel >= WIDTH) pixel = pixel - WIDTH;
@@ -154,7 +160,11 @@ module agent_processor #(
 
     function automatic [8:0] fp_to_pixel_y(input signed [FP_TOTAL-1:0] fp_val);
         logic signed [FP_TOTAL-1:0] pixel;
-        pixel = fp_val >>> FP_FRAC_BITS;
+        if (fp_val >= 0) begin
+            pixel = fp_val >> FP_FRAC_BITS;
+        end else begin
+            pixel = -((-fp_val - 1) >> FP_FRAC_BITS) - 1;
+        end
         if (pixel < 0) pixel = pixel + HEIGHT;
         if (pixel >= HEIGHT) pixel = pixel - HEIGHT;
         return pixel[8:0];
@@ -318,20 +328,21 @@ module agent_processor #(
                 end
 
                 UPDATE_POS: begin
-                    // Apply movement
-                    new_x <= x_reg + dx;
-                    new_y <= y_reg + dy;
+                    // FIX #4: Complete wrapping for multiple boundary crossings
+                    // Use proper modulo wrapping, not just single-wrap if-else
+                    logic signed [FP_TOTAL-1:0] sum_x, sum_y;
+                    logic signed [FP_TOTAL-1:0] wrapped_x, wrapped_y;
 
-                    // Wrap positions
-                    if ((x_reg + dx) < 0)
-                        new_x <= x_reg + dx + WIDTH_FP;
-                    else if ((x_reg + dx) >= WIDTH_FP)
-                        new_x <= x_reg + dx - WIDTH_FP;
+                    sum_x = x_reg + dx;
+                    sum_y = y_reg + dy;
 
-                    if ((y_reg + dy) < 0)
-                        new_y <= y_reg + dy + HEIGHT_FP;
-                    else if ((y_reg + dy) >= HEIGHT_FP)
-                        new_y <= y_reg + dy - HEIGHT_FP;
+                    // Wrap with proper modulo: ((val % range) + range) % range
+                    // This handles multiple boundary crossings
+                    wrapped_x = ((sum_x % WIDTH_FP) + WIDTH_FP) % WIDTH_FP;
+                    wrapped_y = ((sum_y % HEIGHT_FP) + HEIGHT_FP) % HEIGHT_FP;
+
+                    new_x <= wrapped_x;
+                    new_y <= wrapped_y;
                 end
 
                 default: ;

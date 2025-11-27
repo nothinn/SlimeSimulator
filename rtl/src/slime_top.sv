@@ -150,6 +150,8 @@ module slime_top #(
     (* mark_debug = "true" *) logic [LFSR_WIDTH-1:0] lfsr_state;
     logic lfsr_enable, lfsr_load;
     logic [LFSR_WIDTH-1:0] lfsr_seed;
+    // FIX #3: Coordinator-requested LFSR enable for synchronized stepping
+    logic coordinator_lfsr_en;
 
     lfsr #(
         .WIDTH(LFSR_WIDTH),
@@ -361,8 +363,9 @@ module slime_top #(
     assign led[7:6]   = sim_state[1:0];
     assign led[15:8]  = lfsr_state[7:0];
 
-    // LFSR enable during agent processing
-    assign lfsr_enable = (sim_state == SIM_RUN_AGENTS) && !sim_pause;
+    // FIX #3: LFSR enable synchronized to coordinator requests (not continuous)
+    // Only step LFSR when coordinator actually needs a random bit
+    assign lfsr_enable = coordinator_lfsr_en && !sim_pause;
 
     // Trail memory write enable for simple pattern generator
     assign sim_trail_we = (sim_state == SIM_RUN_AGENTS) && !sim_pause;
@@ -440,6 +443,7 @@ module slime_top #(
         .trail_addr_b(orch_trail_addr),
         .trail_data_b_in(orch_trail_data),
         .trail_we_b(orch_trail_we),
+        .lfsr_en_request(coordinator_lfsr_en),
         .done()
     );
 

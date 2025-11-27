@@ -34,6 +34,9 @@ module agent_coordinator #(
     output logic [17:0] trail_data_b_in,
     output logic trail_we_b,
 
+    // FIX #3: Export LFSR enable signal for synchronized stepping
+    output logic lfsr_en_request,
+
     output logic done
 );
 
@@ -141,27 +144,37 @@ module agent_coordinator #(
 
     initial begin
         int i;
-        logic signed [FP_TOTAL-1:0] angle, cx, cy, x, y, radius_fp;
+        real angle_rad, cos_val, sin_val, radius_real, two_pi;
+        logic signed [FP_TOTAL-1:0] cx, cy, x, y, radius_fp, angle_fp, pi_fp;
 
         // Center canvas
         cx = (WIDTH * FP_SCALE) / 2;
         cy = (HEIGHT * FP_SCALE) / 2;
 
-        // Initialize agents on circle (40% radius)
+        // Initialize agents on proper circle (40% radius) matching Python reference
         radius_fp = (WIDTH * FP_SCALE) / 5;
+        radius_real = WIDTH * 0.4;
+        pi_fp = $rtoi(3.14159265359 * FP_SCALE);
+        two_pi = 2.0 * 3.14159265359;
 
         for (i = 0; i < NUM_AGENTS; i = i + 1) begin
-            // Angle around circle: 0 to 2π
-            angle = (i * 2 * 32'd3141593) / NUM_AGENTS;  // Approximate 2π/NUM_AGENTS
+            // Generate angle uniformly around circle: angle = 2π * i / NUM_AGENTS
+            // This gives evenly-spaced agents around the circle
+            angle_rad = (two_pi * i) / NUM_AGENTS;
 
-            // Position: x = cx + r*cos(θ), y = cy + r*sin(θ)
-            // For now, use simple linear distribution on circle perimeter
-            x = cx + (radius_fp / 2) * (i % 2 ? 1 : -1);
-            y = cy + (radius_fp / 2) * (i / 2 % 2 ? 1 : -1);
+            // Calculate position: x = cx + cos(angle) * radius, y = cy + sin(angle) * radius
+            cos_val = $cos(angle_rad);
+            sin_val = $sin(angle_rad);
+
+            x = cx + $rtoi(cos_val * radius_real * FP_SCALE);
+            y = cy + $rtoi(sin_val * radius_real * FP_SCALE);
 
             agent_x[i] = x;
             agent_y[i] = y;
-            agent_angle[i] = angle;
+
+            // Agent angle = spawn_angle + π (pointing toward center, matching Python)
+            angle_fp = $rtoi(angle_rad * FP_SCALE) + pi_fp;
+            agent_angle[i] = angle_fp;
         end
     end
 
@@ -296,10 +309,20 @@ module agent_coordinator #(
     logic [18:0] read_addr, write_addr;
 
     // Wrap coordinates to valid canvas
-    assign read_x = proc_trail_read_x % WIDTH;
-    assign read_y = proc_trail_read_y % HEIGHT;
-    assign write_x = proc_trail_write_x % WIDTH;
-    assign write_y = proc_trail_write_y % HEIGHT;
+    // FIX #1: Proper modulo for potentially negative values
+    // C-style % in SystemVerilog can return negative results; we need Python-style wrapping
+    assign read_x = (proc_trail_read_x < 0)
+                    ? ((proc_trail_read_x % WIDTH) + WIDTH)
+                    : (proc_trail_read_x % WIDTH);
+    assign read_y = (proc_trail_read_y < 0)
+                    ? ((proc_trail_read_y % HEIGHT) + HEIGHT)
+                    : (proc_trail_read_y % HEIGHT);
+    assign write_x = (proc_trail_write_x < 0)
+                     ? ((proc_trail_write_x % WIDTH) + WIDTH)
+                     : (proc_trail_write_x % WIDTH);
+    assign write_y = (proc_trail_write_y < 0)
+                     ? ((proc_trail_write_y % HEIGHT) + HEIGHT)
+                     : (proc_trail_write_y % HEIGHT);
 
     // Address calculation
     assign read_addr = (read_y * WIDTH) + read_x;
@@ -329,5 +352,8 @@ module agent_coordinator #(
     // =========================================================================
 
     assign done = (state == DONE_STATE);
+
+    // FIX #3: Export LFSR enable request signal
+    assign lfsr_en_request = proc_lfsr_en;
 
 endmodule
