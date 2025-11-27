@@ -204,6 +204,9 @@ module slime_top #(
     always_ff @(posedge clk_100mhz) begin
         if (trail_we_b) begin
             // Accumulate trail (saturating add)
+            $display("[TRAIL_MEM] Write addr=%0d data=%0d (before=%0d, after=%0d)",
+                trail_addr_b, trail_data_b_in, trail_mem[trail_addr_b],
+                (trail_mem[trail_addr_b] + trail_data_b_in > 18'h3FFFF) ? 18'h3FFFF : (trail_mem[trail_addr_b] + trail_data_b_in));
             if (trail_mem[trail_addr_b] + trail_data_b_in > 18'h3FFFF) begin
                 trail_mem[trail_addr_b] <= 18'h3FFFF;  // Saturate at 18-bit max
             end else begin
@@ -284,7 +287,7 @@ module slime_top #(
         else begin
             case (sim_state)
                 SIM_IDLE: begin
-                    if (btn_start) begin
+                    if (btn_start | sim_start) begin
                         sim_state <= SIM_INIT;
                         sim_running <= 1'b1;
                     end
@@ -297,27 +300,17 @@ module slime_top #(
                 end
 
                 SIM_RUN_AGENTS: begin
-                    if (!sim_pause) begin
-                        // Write LFSR-generated trail values across entire memory
-                        // (Note: Now using orchestrator, but keep this for fallback)
-                        sim_trail_addr <= agent_idx;
-
-                        // Create organic patterns using LFSR mixed with position for variation
-                        sim_trail_data <= (lfsr_state[7:0] ^ {agent_idx[7:0]});
-
-                        // Iterate through all memory locations (WIDTH * HEIGHT = 19200)
-                        if (agent_idx == (WIDTH * HEIGHT - 1)) begin
-                            agent_idx <= '0;
-                            sim_state <= SIM_DIFFUSE;
-                        end
-                        else begin
-                            agent_idx <= agent_idx + 1'b1;
-                        end
-                    end
+                    // Coordinator handles agent simulation and trail deposits
+                    // This state just manages the overall simulation flow
+                    // For now, stay in RUN_AGENTS state - coordinator will signal when done
+                    // (In future, could add logic to detect end of simulation or frame sync)
+                    sim_state <= SIM_RUN_AGENTS;  // Stay in this state
                 end
 
                 SIM_DIFFUSE: begin
                     // Apply decay to trail map (one pixel per cycle)
+                    // TEMPORARILY DISABLED - Multi-driver conflict with Port B
+                    // TODO: Move decay into Port B always block or use separate memory port
                     if (!sim_pause) begin
                         // Read current trail value
                         trail_val_before_decay <= trail_mem[agent_idx];
@@ -328,7 +321,8 @@ module slime_top #(
                         trail_val_decayed <= (trail_mem[agent_idx] * FP_DECAY) >> FP_FRAC_BITS;
 
                         // Write back decayed value
-                        trail_mem[agent_idx] <= (trail_mem[agent_idx] * FP_DECAY) >> FP_FRAC_BITS;
+                        // COMMENTED OUT - causes multi-driver error with Port B
+                        // trail_mem[agent_idx] <= (trail_mem[agent_idx] * FP_DECAY) >> FP_FRAC_BITS;
 
                         // Advance to next pixel
                         if (agent_idx == (WIDTH * HEIGHT - 1)) begin
@@ -411,6 +405,13 @@ module slime_top #(
     assign trail_data_b_in = use_orchestrator ? orch_trail_data : {{10{1'b0}}, pattern_trail_data};
     assign trail_we_b = use_orchestrator ? orch_trail_we : pattern_trail_we;
 
+    always_ff @(posedge clk_100mhz) begin
+        if (orch_trail_we || pattern_trail_we) begin
+            $display("[MUX] sim_state=%0d use_orch=%0b orch_we=%0b pattern_we=%0b selected_we=%0b addr=%0d data=%0d",
+                sim_state, use_orchestrator, orch_trail_we, pattern_trail_we, trail_we_b, trail_addr_b, trail_data_b_in);
+        end
+    end
+
     // Agent Coordinator - Orchestrates real agent simulation
     // Use sim_start if provided (for testbench), otherwise use btn_start
     logic coordinator_start;
@@ -445,6 +446,7 @@ module slime_top #(
     // =========================================================================
     // Debug Interface - Allow testbench to read trail memory
     // =========================================================================
-    assign debug_trail_data = trail_mem[debug_trail_addr];
+    // Combinatorial read for fast testbench access without advancing simulation time
+    assign debug_trail_data = trail_mem[debug_trail_addr[14:0]];  // Limit index to 15 bits for 76800 address space
 
 endmodule

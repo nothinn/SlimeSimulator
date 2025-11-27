@@ -86,6 +86,9 @@ module agent_coordinator #(
     logic signed [FP_TOTAL-1:0] latched_x_out, latched_y_out, latched_angle_out;
     logic latched_valid;
 
+    // Previous agent index for write-back
+    logic [AGENT_COUNT_LOG-1:0] prev_idx;
+
     // Extract LFSR bit
     logic lfsr_bit;
     assign lfsr_bit = lfsr_state[0];
@@ -171,25 +174,39 @@ module agent_coordinator #(
             state <= IDLE;
             current_agent_idx <= '0;
             step_counter <= '0;
+            latched_valid <= 1'b0;  // CRITICAL: Initialize latched_valid to prevent spurious write-backs
         end else begin
+            // DEBUG: Print state transitions (simplified without .name())
+            if (state != next_state) begin
+                $display("[COORD] State transition (cycle=%0d): %0d -> %0d",
+                    $time / 10, state, next_state);
+            end
+
             state <= next_state;
 
             case (state)
                 IDLE: begin
                     current_agent_idx <= '0;
                     step_counter <= '0;
+                    if (next_state == INITIALIZE) begin
+                        $display("[COORD] Entering INITIALIZE state");
+                    end
                 end
 
                 INITIALIZE: begin
                     current_agent_idx <= '0;
                     step_counter <= '0;
+                    if (next_state == RUNNING) begin
+                        $display("[COORD] Entering RUNNING state (will process agents)");
+                    end
                 end
 
                 RUNNING: begin
                     // Write back results from previous agent (latched on last cycle)
                     if (latched_valid) begin
-                        logic [AGENT_COUNT_LOG-1:0] prev_idx;
                         prev_idx = (current_agent_idx == 0) ? (NUM_AGENTS - 1) : (current_agent_idx - 1'b1);
+                        $display("[COORD] Writing back agent[%0d]: x=%0d y=%0d angle=%0d",
+                            prev_idx, latched_x_out, latched_y_out, latched_angle_out);
                         agent_x[prev_idx] <= latched_x_out;
                         agent_y[prev_idx] <= latched_y_out;
                         agent_angle[prev_idx] <= latched_angle_out;
@@ -198,6 +215,8 @@ module agent_coordinator #(
 
                     if (!pause && proc_done) begin
                         // Latch processor outputs
+                        $display("[COORD] Processor done for agent[%0d], latching outputs x=%0d y=%0d angle=%0d",
+                            current_agent_idx, proc_x_out, proc_y_out, proc_angle_out);
                         latched_x_out <= proc_x_out;
                         latched_y_out <= proc_y_out;
                         latched_angle_out <= proc_angle_out;
@@ -206,9 +225,11 @@ module agent_coordinator #(
                         // Move to next agent
                         if (current_agent_idx < NUM_AGENTS - 1) begin
                             current_agent_idx <= current_agent_idx + 1'b1;
+                            $display("[COORD] Advancing to agent[%0d]", current_agent_idx + 1);
                         end else begin
                             current_agent_idx <= '0;
                             step_counter <= step_counter + 1'b1;
+                            $display("[COORD] Completed step %0d, resetting to agent[0]", step_counter);
                         end
                     end
                 end
@@ -257,6 +278,14 @@ module agent_coordinator #(
     assign proc_y_in = agent_y[current_agent_idx];
     assign proc_angle_in = agent_angle[current_agent_idx];
 
+    // DEBUG: Monitor processor start
+    always_ff @(posedge clk) begin
+        if (proc_start) begin
+            $display("[COORD] Starting processor for agent[%0d]: x=%0d y=%0d angle=%0d (busy=%0b)",
+                current_agent_idx, proc_x_in, proc_y_in, proc_angle_in, proc_busy);
+        end
+    end
+
     // =========================================================================
     // Trail Memory Interface
     // Priority: Processor write > Processor read
@@ -284,6 +313,14 @@ module agent_coordinator #(
     assign trail_addr_b = proc_trail_write_en ? write_addr : read_addr;
     assign trail_data_b_in = proc_trail_write_en ? trail_write_scaled : 18'h0;
     assign trail_we_b = proc_trail_write_en;
+
+    // DEBUG: Monitor trail writes
+    always_ff @(posedge clk) begin
+        if (proc_trail_write_en) begin
+            $display("[COORD] Trail write: addr=%0d (%0d,%0d) data=%0d (from agent[%0d])",
+                write_addr, write_x, write_y, trail_write_scaled, current_agent_idx);
+        end
+    end
 
     // =========================================================================
     // Output

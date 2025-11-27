@@ -14,6 +14,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # RTL source files
 set(RTL_SOURCES
     ../src/slime_top.sv
+    ../src/agent_coordinator.sv
     ../src/agent_processor.sv
     ../src/lfsr.sv
     ../src/fixed_point_mult.sv
@@ -24,7 +25,7 @@ set(RTL_SOURCES
 
 # Testbench sources
 set(TB_SOURCES
-    slime_top_tb.cpp
+    slime_verilator_full_tb.cpp
 )
 
 # Generate Verilator C++ module

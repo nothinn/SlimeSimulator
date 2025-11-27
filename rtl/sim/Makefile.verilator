@@ -6,7 +6,7 @@ VERILATOR_FLAGS = --cc --trace --build -j 4 -O3 -Wno-WIDTH -Wno-WIDTHTRUNC
 RTL_TOP = ../src/slime_top.sv
 RTL_SOURCES = \
 	../src/slime_top.sv \
-	../src/agent_orchestrator.sv \
+	../src/agent_coordinator.sv \
 	../src/agent_processor.sv \
 	../src/lfsr.sv \
 	../src/fixed_point_mult.sv \

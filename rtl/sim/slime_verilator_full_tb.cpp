@@ -14,7 +14,7 @@
 const int NUM_AGENTS = 100;
 const int WIDTH = 320;
 const int HEIGHT = 240;
-const int NUM_STEPS = 1;      // 10× longer: 1000 → 10000
+const int NUM_STEPS = 3;      // 10× longer: 1000 → 10000
 const int DUMP_INTERVAL = 10;     // 10× more frequent: 100 → 10
 
 // Trail map: 18-bit unsigned integers
@@ -143,17 +143,34 @@ public:
         snprintf(filename, sizeof(filename), "rtl_trail_dumps/trail_step_%05d.bin", step);
         std::ofstream file(filename, std::ios::binary);
         if (file.is_open()) {
-            // READ trail values from RTL via debug interface
+            // READ trail values from RTL via debug_trail interface (combinatorial)
             uint32_t min_val = TRAIL_MAX, max_val = 0;
             double sum = 0;
+            int non_zero_count = 0;
+
+            // Sample test: Read first few addresses to see if it's working
+            if (step == 1) {
+                std::cout << "[TB] DEBUG: Testing debug_trail interface...\n";
+                for (int test_addr = 0; test_addr < 10; test_addr++) {
+                    dut->debug_trail_addr = test_addr;
+                    dut->eval();  // Propagate combinatorial logic without clocking
+                    uint32_t test_val = dut->debug_trail_data & 0x3FFFF;
+                    std::cout << "[TB] DEBUG: debug_trail_addr=" << test_addr
+                             << " debug_trail_data=" << test_val << "\n";
+                }
+            }
 
             for (size_t addr = 0; addr < trail_map.size(); addr++) {
-                // Request trail value from RTL at this address
-                dut->debug_trail_addr = addr;
-                clock(1);  // Wait one cycle for combinatorial read
+                // Set address for debug read (combinatorial)
+                dut->debug_trail_addr = addr & 0xFFFF;  // 16 bits for addressing
 
-                // Read the value returned by RTL
+                // Propagate combinatorial logic without advancing simulation time
+                dut->eval();
+
+                // Read the combinatorial result
                 uint32_t val = dut->debug_trail_data & 0x3FFFF;  // Mask to 18 bits
+
+                if (val > 0) non_zero_count++;
 
                 // Update statistics
                 if (val < min_val) min_val = val;
@@ -175,7 +192,8 @@ public:
             std::cout << "[TB] Step " << std::setw(4) << step
                      << ": Trail (min=" << min_val
                      << " max=" << max_val
-                     << " mean=" << std::fixed << std::setprecision(1) << mean << ")" << std::endl;
+                     << " mean=" << std::fixed << std::setprecision(1) << mean
+                     << " non_zero=" << non_zero_count << ")" << std::endl;
         }
     }
 
@@ -302,21 +320,22 @@ public:
 
         std::cout << "Processing agents through RTL for " << NUM_STEPS << " steps...\n" << std::endl;
 
-        // TEST: Verify trail memory read interface is working
-        std::cout << "[TB] Testing trail memory interface...\n";
-        for (int test_addr = 0; test_addr < 10; test_addr++) {
-            dut->debug_trail_addr = test_addr;
-            clock(1);
-            uint32_t val = dut->debug_trail_data & 0x3FFFF;
-            std::cout << "[TB] Trail[" << test_addr << "] = " << val << "\n";
-        }
-        std::cout << "\n";
-
         // Assert direct simulation start signal (bypasses debouncer)
+        std::cout << "[TB] Asserting sim_start signal..." << std::endl;
         dut->sim_start = 1;
         clock(2);  // Let the start signal propagate
         dut->sim_start = 0;
-        clock(10); // Wait for state machine to enter RUNNING
+
+        std::cout << "[TB] Waiting for state machine transitions..." << std::endl;
+        for (int i = 0; i < 10; i++) {
+            clock(1);
+            // Debug output disabled - requires special Verilator build
+            // std::cout << "[TB] Cycle " << i << ": coordinator_state=" << (int)dut->rootp->slime_top__DOT__u_coordinator__DOT__state
+            //          << " proc_busy=" << (int)dut->rootp->slime_top__DOT__u_coordinator__DOT__proc_busy
+            //          << " proc_done=" << (int)dut->rootp->slime_top__DOT__u_coordinator__DOT__proc_done
+            //          << " current_agent=" << (int)dut->rootp->slime_top__DOT__u_coordinator__DOT__current_agent_idx
+            //          << std::endl;
+        }
 
         // Calculate total cycles needed
         // Each agent takes ~19 cycles through processor
@@ -325,12 +344,81 @@ public:
         int cycles_per_step = NUM_AGENTS * 25;  // Conservative estimate
         int total_cycles = NUM_STEPS * cycles_per_step;
 
-        std::cout << "Clocking RTL for " << total_cycles << " cycles ("
+        std::cout << "\n[TB] Running simulation for " << total_cycles << " cycles ("
                   << NUM_STEPS << " steps × " << cycles_per_step << " cycles/step)...\n" << std::endl;
+
+        // Track previous values to detect changes
+        int prev_state = -1;
+        int prev_agent = -1;
+        bool prev_proc_busy = false;
+        bool prev_proc_done = false;
+        int agents_processed = 0;
 
         // Let RTL run and process agents through the real processor
         for (int cycle = 0; cycle < total_cycles; cycle++) {
+            // Debug: Capture values before clock (DISABLED - requires special build)
+            // int curr_state = dut->rootp->slime_top__DOT__u_coordinator__DOT__state;
+            // int curr_agent = dut->rootp->slime_top__DOT__u_coordinator__DOT__current_agent_idx;
+            // bool curr_proc_busy = dut->rootp->slime_top__DOT__u_coordinator__DOT__proc_busy;
+            // bool curr_proc_done = dut->rootp->slime_top__DOT__u_coordinator__DOT__proc_done;
+            // bool curr_proc_start = dut->rootp->slime_top__DOT__u_coordinator__DOT__proc_start;
+            // bool curr_trail_we = dut->rootp->slime_top__DOT__u_coordinator__DOT__trail_we_b;
+
             clock(1);
+
+            // Debug output disabled - requires special Verilator build
+            // // Detect state changes
+            // if (curr_state != prev_state) {
+            //     std::cout << "[TB] Cycle " << std::setw(6) << cycle
+            //              << ": STATE CHANGE: " << prev_state << " -> " << curr_state;
+            //     switch (curr_state) {
+            //         case 0: std::cout << " (IDLE)"; break;
+            //         case 1: std::cout << " (INITIALIZE)"; break;
+            //         case 2: std::cout << " (RUNNING)"; break;
+            //         case 3: std::cout << " (DONE)"; break;
+            //         default: std::cout << " (UNKNOWN)"; break;
+            //     }
+            //     std::cout << std::endl;
+            //     prev_state = curr_state;
+            // }
+
+            // // Detect agent changes
+            // if (curr_agent != prev_agent) {
+            //     std::cout << "[TB] Cycle " << std::setw(6) << cycle
+            //              << ": AGENT CHANGE: " << prev_agent << " -> " << curr_agent
+            //              << " (agents processed: " << agents_processed << ")" << std::endl;
+            //     prev_agent = curr_agent;
+            //     if (curr_agent == 0 && agents_processed > 0) {
+            //         std::cout << "[TB]   >>> Completed full agent cycle, back to agent 0 <<<" << std::endl;
+            //     }
+            //     agents_processed++;
+            // }
+
+            // // Monitor processor signals
+            // if (curr_proc_start) {
+            //     std::cout << "[TB] Cycle " << std::setw(6) << cycle
+            //              << ": PROC_START for agent[" << curr_agent << "]" << std::endl;
+            // }
+            // if (curr_proc_done && !prev_proc_done) {
+            //     std::cout << "[TB] Cycle " << std::setw(6) << cycle
+            //              << ": PROC_DONE for agent[" << curr_agent << "]" << std::endl;
+            // }
+            // if (curr_trail_we) {
+            //     int trail_addr = dut->rootp->slime_top__DOT__u_coordinator__DOT__trail_addr_b;
+            //     int trail_data = dut->rootp->slime_top__DOT__u_coordinator__DOT__trail_data_b_in;
+            //     std::cout << "[TB] Cycle " << std::setw(6) << cycle
+            //              << ": TRAIL_WRITE addr=" << trail_addr << " data=" << trail_data
+            //              << " (agent[" << curr_agent << "])" << std::endl;
+            // }
+
+            // prev_proc_busy = curr_proc_busy;
+            // prev_proc_done = curr_proc_done;
+
+            // Print summary every 1000 cycles (reduced frequency)
+            if (cycle > 0 && cycle % 1000 == 0) {
+                std::cout << "[TB] Cycle " << std::setw(6) << cycle
+                         << " (progress: " << (cycle * 100 / total_cycles) << "%)" << std::endl;
+            }
 
             // Dump trail map at step boundaries (every cycles_per_step cycles)
             int current_step = (cycle + 1) / cycles_per_step;
@@ -338,11 +426,13 @@ public:
 
             if (current_step > 0 && current_step <= NUM_STEPS &&
                 cycle_in_step == 0 && cycle < total_cycles - 10) {
-                std::cout << "  Dumping trail map at step " << current_step << "..." << std::endl;
+                std::cout << "\n[TB] Dumping trail map at step " << current_step << "..." << std::endl;
                 dump_trail_map(current_step);
-                std::cout << "  Progress: " << std::setw(3) << (current_step * 100 / NUM_STEPS) << "%\r" << std::flush;
+                std::cout << "[TB] Progress: " << std::setw(3) << (current_step * 100 / NUM_STEPS) << "%\n" << std::endl;
             }
         }
+
+        std::cout << "\n[TB] Simulation complete. Total agents processed: " << agents_processed << std::endl;
 
         std::cout << "\n  Dumping final trail map at step " << NUM_STEPS << "..." << std::endl;
         dump_trail_map(NUM_STEPS - 1);
