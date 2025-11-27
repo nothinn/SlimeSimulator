@@ -11,7 +11,7 @@
 #include <algorithm>
 
 // Full simulation with real agent processing
-const int NUM_AGENTS = 100;
+const int NUM_AGENTS = 1000;
 const int WIDTH = 320;
 const int HEIGHT = 240;
 const int NUM_STEPS = 3;      // 10× longer: 1000 → 10000

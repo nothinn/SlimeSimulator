@@ -11,10 +11,10 @@
 #include <algorithm>
 
 // Full simulation with real agent processing
-const int NUM_AGENTS = 100;
+const int NUM_AGENTS = 1000;
 const int WIDTH = 320;
 const int HEIGHT = 240;
-const int NUM_STEPS = 3;      // 10× longer: 1000 → 10000
+const int NUM_STEPS = 100;      // 10× longer: 1000 → 10000
 const int DUMP_INTERVAL = 10;     // 10× more frequent: 100 → 10
 
 // Trail map: 18-bit unsigned integers
