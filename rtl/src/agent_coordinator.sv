@@ -143,7 +143,7 @@ module agent_coordinator #(
     // =========================================================================
 
     initial begin
-        int i;
+        int i, min_dimension;
         real angle_rad, cos_val, sin_val, radius_real, two_pi;
         logic signed [FP_TOTAL-1:0] cx, cy, x, y, radius_fp, angle_fp, pi_fp;
 
@@ -152,8 +152,10 @@ module agent_coordinator #(
         cy = (HEIGHT * FP_SCALE) / 2;
 
         // Initialize agents on proper circle (40% radius) matching Python reference
-        radius_fp = (WIDTH * FP_SCALE) / 5;
-        radius_real = WIDTH * 0.4;
+        // CRITICAL: Use min(WIDTH, HEIGHT) for radius to ensure circular (not elliptical) spawn
+        min_dimension = (WIDTH < HEIGHT) ? WIDTH : HEIGHT;
+        radius_fp = (min_dimension * FP_SCALE) / 5;  // 0.4 = 2/5
+        radius_real = min_dimension * 0.4;
         pi_fp = $rtoi(3.14159265359 * FP_SCALE);
         two_pi = 2.0 * 3.14159265359;
 

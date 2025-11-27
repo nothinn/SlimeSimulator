@@ -217,6 +217,9 @@ if [[ "$DO_BUILD" == true ]]; then
     verilator -cc --trace -Wno-fatal --exe \
         -I../src \
         --top-module slime_top \
+        -GWIDTH=$RESOLUTION_WIDTH \
+        -GHEIGHT=$RESOLUTION_HEIGHT \
+        -GNUM_AGENTS=$NUM_AGENTS \
         -o slime_verilator_full \
         ../src/slime_top.sv ../src/*.sv \
         slime_verilator_full_tb.cpp
