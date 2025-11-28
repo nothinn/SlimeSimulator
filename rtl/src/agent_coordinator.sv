@@ -325,21 +325,12 @@ module agent_coordinator #(
     logic [8:0] read_y, write_y;
     logic [18:0] read_addr, write_addr;
 
-    // Wrap coordinates to valid canvas
-    // FIX #1: Proper modulo for potentially negative values
-    // C-style % in SystemVerilog can return negative results; we need Python-style wrapping
-    assign read_x = (proc_trail_read_x < 0)
-                    ? ((proc_trail_read_x % WIDTH) + WIDTH)
-                    : (proc_trail_read_x % WIDTH);
-    assign read_y = (proc_trail_read_y < 0)
-                    ? ((proc_trail_read_y % HEIGHT) + HEIGHT)
-                    : (proc_trail_read_y % HEIGHT);
-    assign write_x = (proc_trail_write_x < 0)
-                     ? ((proc_trail_write_x % WIDTH) + WIDTH)
-                     : (proc_trail_write_x % WIDTH);
-    assign write_y = (proc_trail_write_y < 0)
-                     ? ((proc_trail_write_y % HEIGHT) + HEIGHT)
-                     : (proc_trail_write_y % HEIGHT);
+    // Coordinates from processor are already in pixel range [0, WIDTH) and [0, HEIGHT)
+    // No wrapping needed - just direct assignment
+    assign read_x = proc_trail_read_x;
+    assign read_y = proc_trail_read_y;
+    assign write_x = proc_trail_write_x;
+    assign write_y = proc_trail_write_y;
 
     // Address calculation
     assign read_addr = (read_y * WIDTH) + read_x;

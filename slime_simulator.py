@@ -350,9 +350,15 @@ class SlimeSimulator:
         cy_fp = self.fp.to_fixed(self.height / 2)
 
         if self.config.spawn_pattern == 'circle':
-            # Spawn in a circle pointing inward
+            # Spawn in a circle pointing inward (deterministic, matching RTL)
+            # Agents are evenly spaced around the circle at angles: 2π * i / NUM_AGENTS
             radius_fp = self.fp.to_fixed(min(self.width, self.height) * 0.4)
-            spawn_angles_fp = self._lfsr_uniform_angle_fp(n)
+
+            # Generate deterministic spawn angles: 2π * i / NUM_AGENTS for i in [0, n)
+            spawn_angles_fp = np.array(
+                [self.fp.to_fixed(2 * np.pi * i / n) for i in range(n)],
+                dtype=np.int64
+            )
 
             # x = cx + cos(angle) * radius
             cos_vals = self.trig.cos_array(spawn_angles_fp)
@@ -360,9 +366,12 @@ class SlimeSimulator:
 
             self.x = cx_fp + self.fp.multiply_array(cos_vals, np.full(n, radius_fp, dtype=np.int64))
             self.y = cy_fp + self.fp.multiply_array(sin_vals, np.full(n, radius_fp, dtype=np.int64))
-            # Point toward center (angle + pi)
+            # Point toward center (angle + pi), with proper wrapping to [0, 2π)
             pi_fp = self.fp.to_fixed(np.pi)
+            two_pi_fp = self.fp.to_fixed(2 * np.pi)
             self.angles = spawn_angles_fp + pi_fp
+            # Normalize angles to [0, 2π)
+            self.angles = np.where(self.angles >= two_pi_fp, self.angles - two_pi_fp, self.angles)
 
         elif self.config.spawn_pattern == 'random':
             # Random positions and angles

@@ -18,8 +18,8 @@ module slime_top #(
     parameter FP_FRAC_BITS = 12,
     parameter LFSR_WIDTH   = 32,
     parameter TRIG_BITS    = 10,
-    parameter WIDTH        = 160,
-    parameter HEIGHT       = 120
+    parameter WIDTH        = 320,
+    parameter HEIGHT       = 240
 ) (
     input  logic clk_100mhz,    // 100 MHz system clock
 

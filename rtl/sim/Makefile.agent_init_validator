@@ -1,0 +1,59 @@
+# Verilator Makefile for Agent Initialization Validator
+
+VERILATOR = verilator
+VERILATOR_FLAGS = --cc --trace -j 4 -O3 \
+	-Wno-WIDTH -Wno-WIDTHTRUNC \
+	-Wno-UNSIGNED -Wno-CMPCONST
+
+RTL_TOP = ../src/slime_top.sv
+RTL_SOURCES = \
+	../src/slime_top.sv \
+	../src/agent_coordinator.sv \
+	../src/agent_processor.sv \
+	../src/lfsr.sv \
+	../src/fixed_point_mult.sv \
+	../src/trig_lut.sv \
+	../src/debouncer.sv \
+	../src/vga_controller.sv
+
+TB_SOURCES = agent_init_validator_tb.cpp
+BUILD_DIR = obj_dir_agent_init
+BIN = $(BUILD_DIR)/Vslime_top
+MAKEFLAGS += -j 4
+
+all: sim
+
+sim: $(RTL_SOURCES) $(TB_SOURCES)
+	@echo "========================================================================="
+	@echo "  Compiling Agent Initialization Validator with Verilator"
+	@echo "========================================================================="
+	@echo ""
+	@echo "Verilator flags: $(VERILATOR_FLAGS)"
+	@echo "RTL sources:"
+	@for src in $(RTL_SOURCES); do echo "  - $$src"; done
+	@echo "Testbench: $(TB_SOURCES)"
+	@echo ""
+	@$(VERILATOR) $(VERILATOR_FLAGS) \
+		--top-module slime_top \
+		--Mdir $(BUILD_DIR) \
+		-CFLAGS "-std=c++17" \
+		-GNUM_AGENTS=$(NUM_AGENTS) \
+		--exe \
+		$(RTL_SOURCES) \
+		$(TB_SOURCES)
+	@echo ""
+	@echo "Building executable in $(BUILD_DIR)..."
+	$(MAKE) -C $(BUILD_DIR) -f Vslime_top.mk
+	@echo ""
+	@echo "Binary: $(BIN)"
+
+run: sim
+	@echo ""
+	@echo "Running RTL agent initialization validator..."
+	@echo ""
+	@$(BIN) rtl_agent_validation.json
+
+clean:
+	rm -rf $(BUILD_DIR)
+
+.PHONY: all sim run clean
