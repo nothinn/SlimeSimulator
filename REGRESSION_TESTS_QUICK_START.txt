@@ -1,0 +1,148 @@
+================================================================================
+                   SlimeSimulator Regression Testing - Quick Start
+================================================================================
+
+OVERVIEW
+--------
+CSV-driven regression testing framework for SlimeSimulator RTL vs Python comparison,
+with support for smoke, unit, integration, performance, and stress tests.
+
+FILES
+-----
+  regression_tests.csv          - Test definitions and configuration
+  run_regression_tests.py       - Test execution engine
+  REGRESSION_TESTING_GUIDE.md   - Complete documentation
+  regression_results/           - Output directory (created on first run)
+
+QUICK COMMANDS
+--------------
+Run all tests:
+  $ python run_regression_tests.py
+
+Run smoke tests only (fast):
+  $ python run_regression_tests.py --test-type smoke
+
+Run specific test:
+  $ python run_regression_tests.py --test-id 1
+
+Run Python only (skip RTL):
+  $ python run_regression_tests.py --no-rtl
+
+Run with verbose logging:
+  $ python run_regression_tests.py --verbose
+
+Filter by test type (smoke, unit, integration, performance, stress):
+  $ python run_regression_tests.py --test-type integration
+
+OUTPUT
+------
+Each test generates:
+  regression_results/<test_name>/
+  ├── python/                  - Python simulation outputs
+  ├── rtl/                      - RTL simulation outputs
+  ├── trajectory_viewer.html    - Interactive trajectory visualization
+  ├── comparison_*.png          - Side-by-side comparison frames
+  └── test_statistics.json      - Statistics and metrics
+
+Summary report:
+  regression_results/REPORT.md  - Overall test results
+  regression_results/regression_tests.log - Detailed execution log
+
+DEFAULT TEST SUITE (10 tests)
+-----------------------------
+ID  Name                   Type           Agents Steps  Python RTL  Purpose
+1   smoke_test_100         smoke          100    10     ✓      ✓    Quick check
+2   initialization         unit           100    0      ✓      ✓    Init validation
+3   basic_movement_10      integration    100    10     ✓      ✓    Movement check
+4   full_100step           integration    100    100    ✓      ✓    Full comparison
+5   medium_agents_500      integration    500    50     ✓      ✓    Medium load
+6   scaling_1000           performance    1000   20     ✓      ✓    Perf scaling
+7   resolution_640x480     integration    100    10     ✓      ✗    High res test
+8   trail_decay            unit           50     50     ✓      ✓    Decay test
+9   sensory_decision       unit           10     5      ✓      ✓    Sensory logic
+10  long_duration_100      stress         100    200    ✗      ✓    Stability
+
+CSV COLUMNS (for custom tests)
+------------------------------
+test_id                     - Unique identifier (1-N)
+test_name                   - Name (snake_case, no spaces)
+test_type                   - Type: smoke | unit | integration | performance | stress
+num_agents                  - Number of agents (1-5000)
+resolution                  - Canvas size: WIDTHxHEIGHT (e.g., 320x240, 640x480)
+num_steps                   - Duration in simulation steps (0-1000)
+python_enabled              - Run Python reference: true | false
+rtl_enabled                 - Run RTL simulation: true | false
+generate_trajectory_html    - Create HTML viewer: true | false
+generate_trail_map          - Create trail visualization: true | false
+generate_comparison_images  - Create comparison frames: true | false
+generate_statistics         - Create JSON report: true | false
+output_dir                  - Directory for outputs (e.g., regression_results/test_name)
+description                 - Human-readable description
+
+ADD CUSTOM TEST
+---------------
+Edit regression_tests.csv and add a new line:
+  11,my_custom_test,integration,200,320x240,50,true,true,true,true,true,true,regression_results/custom,My test description
+
+Then run:
+  $ python run_regression_tests.py --test-id 11
+
+EXPECTED EXECUTION TIMES
+------------------------
+Test Type       Agents  Steps  Duration (estimate)
+Smoke           100     10     ~5 sec
+Unit            100     5-50   ~3-15 sec
+Integration     100-500 10-100 ~10-60 sec
+Performance     1000    10-50  ~30-120 sec
+Stress          100     200    ~60-180 sec
+
+CI/CD INTEGRATION
+-----------------
+GitHub Actions example in REGRESSION_TESTING_GUIDE.md
+
+Run tests in CI:
+  - python run_regression_tests.py --test-type smoke  (before every commit)
+  - python run_regression_tests.py --test-type integration  (on PR)
+  - python run_regression_tests.py  (nightly, all tests)
+
+CHECK RESULTS
+-------------
+View summary:
+  $ cat regression_results/REPORT.md
+
+View detailed log:
+  $ tail -100 regression_results/regression_tests.log
+
+Check specific test:
+  $ cat regression_results/<test_name>/test_statistics.json | jq .
+
+View trajectory:
+  $ open regression_results/<test_name>/trajectory_viewer.html
+
+TROUBLESHOOTING
+---------------
+No tests found:
+  $ head regression_tests.csv         # Verify format
+  $ python run_regression_tests.py --csv my_tests.csv  # Use custom CSV
+
+RTL binary missing:
+  $ cd rtl/sim && ls obj_dir/Vslime_top*
+  If missing, rebuild with verilator (see CLAUDE.md)
+
+Python errors:
+  $ python slime_simulator.py --agents 10 --steps 5  # Test directly
+
+Memory issues:
+  $ python run_regression_tests.py --test-id 6 --no-rtl  # Reduce memory usage
+
+DOCUMENTATION
+--------------
+For complete details:
+  $ cat REGRESSION_TESTING_GUIDE.md
+
+For all project docs:
+  $ cat CLAUDE.md
+
+================================================================================
+Commit: dc85c4f - "Add comprehensive regression testing framework"
+================================================================================
