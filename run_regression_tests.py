@@ -222,54 +222,50 @@ class RegressionTestRunner:
 
     def _run_rtl_sim(self, test: RegressionTest, width: int, height: int,
                      output_path: Path) -> Dict:
-        """Run RTL simulation via Verilator"""
+        """Run RTL simulation via Verilator (with recompilation for test parameters)"""
         rtl_output = output_path / "rtl"
         rtl_output.mkdir(parents=True, exist_ok=True)
 
-        # Check if RTL binary exists (try multiple names)
-        rtl_sim_dir = self.base_dir / "rtl" / "sim" / "obj_dir"
-        rtl_binaries = [
-            rtl_sim_dir / "Vslime_top",
-            rtl_sim_dir / "slime_verilator_full",
-            rtl_sim_dir / "Vslime_top_agent",
-        ]
-
-        rtl_binary = None
-        for binary in rtl_binaries:
-            if binary.exists():
-                rtl_binary = binary
-                break
-
-        if not rtl_binary:
-            available = ", ".join([b.name for b in rtl_binaries])
-            raise RuntimeError(f"RTL binary not found. Tried: {available}\nRebuild with: cd rtl/sim && make verilator")
-
-        # Use run_extended_comparison.sh script if available
+        # Check if run_extended_comparison.sh exists (preferred, handles compilation)
         comparison_script = self.base_dir / "run_extended_comparison.sh"
         if comparison_script.exists():
-            self.log(f"  Using run_extended_comparison.sh")
+            self.log(f"  Compiling RTL for: {width}x{height}, {test.num_agents} agents, {test.num_steps} steps")
+            self.log(f"  Using run_extended_comparison.sh (rebuilds RTL with parameters)")
             cmd = [
                 "bash", str(comparison_script),
                 "--resolution", f"{width}x{height}",
                 "--agents", str(test.num_agents),
                 "--steps", str(test.num_steps),
-                "--no-build",  # Skip build, use existing binary
             ]
         else:
-            # Fallback: call RTL binary directly
-            self.log(f"  Calling RTL binary directly")
-            cmd = [str(rtl_binary)]
+            # Fallback: try to compile RTL manually for the test parameters
+            self.log(f"  Compiling RTL manually for: {width}x{height}, {test.num_agents} agents, {test.num_steps} steps")
+
+            # Build command to compile RTL with test-specific parameters
+            rtl_sim_dir = self.base_dir / "rtl" / "sim"
+            cmd = [
+                "bash", "-c",
+                f"cd {rtl_sim_dir} && "
+                f"verilator --Wno-WIDTH --Wno-CMPCONST --Wno-MULTITOP "
+                f"--cc --exe --build -j 4 "
+                f"-o obj_dir_test/Vslime_top "
+                f"slime_verilator_full_tb.cpp ../src/slime_top.sv ../src/agent_coordinator.sv "
+                f"../src/agent_processor.sv ../src/fixed_point_mult.sv ../src/trig_lut.sv "
+                f"../src/lfsr.sv ../src/vga_controller.sv ../src/debouncer.sv "
+                f"2>&1 | tee compile.log"
+            ]
 
         self.log(f"  Command: {' '.join(cmd)}")
 
         try:
-            # Execute RTL simulation
+            # Execute RTL simulation (with compilation, can take longer)
+            # Timeout: 5 minutes for compilation + 20 minutes for simulation = 25 minutes
             result = subprocess.run(
                 cmd,
                 cwd=str(self.base_dir / "rtl" / "sim"),
                 capture_output=True,
                 text=True,
-                timeout=1200  # 20 minute timeout for RTL
+                timeout=1500  # 25 minute timeout (includes Verilator compilation time)
             )
 
             if result.returncode != 0:
