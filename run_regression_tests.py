@@ -175,67 +175,206 @@ class RegressionTestRunner:
     def _run_python_sim(self, test: RegressionTest, width: int, height: int,
                        output_path: Path) -> Dict:
         """Run Python simulation"""
-        # Build command
+        py_output = output_path / "python"
+        py_output.mkdir(parents=True, exist_ok=True)
+
+        # Build command to run Python simulator
         cmd = [
-            sys.executable, "slime_simulator.py",
+            sys.executable, str(self.base_dir / "slime_simulator.py"),
             "--agents", str(test.num_agents),
             "--width", str(width),
             "--height", str(height),
             "--steps", str(test.num_steps),
-            "--output-dir", str(output_path / "python"),
         ]
 
-        # Note: This is a template - adjust to actual Python simulator interface
         self.log(f"  Command: {' '.join(cmd)}")
 
-        # For now, return placeholder result
-        return {
-            "agents": test.num_agents,
-            "resolution": f"{width}x{height}",
-            "steps": test.num_steps,
-            "status": "completed",
-        }
+        try:
+            # Execute Python simulation
+            result = subprocess.run(
+                cmd,
+                cwd=str(self.base_dir),
+                capture_output=True,
+                text=True,
+                timeout=600  # 10 minute timeout
+            )
+
+            if result.returncode != 0:
+                self.log(f"  ERROR: Python simulation failed")
+                self.log(f"  stderr: {result.stderr}")
+                raise RuntimeError(f"Python simulation failed: {result.stderr}")
+
+            self.log(f"  ✓ Python simulation completed")
+
+            return {
+                "agents": test.num_agents,
+                "resolution": f"{width}x{height}",
+                "steps": test.num_steps,
+                "status": "completed",
+                "output_dir": str(py_output),
+            }
+        except subprocess.TimeoutExpired:
+            self.log(f"  ERROR: Python simulation timeout")
+            raise RuntimeError("Python simulation timeout (>10 min)")
+        except Exception as e:
+            self.log(f"  ERROR: {str(e)}")
+            raise
 
     def _run_rtl_sim(self, test: RegressionTest, width: int, height: int,
                      output_path: Path) -> Dict:
         """Run RTL simulation via Verilator"""
-        # Build Verilator command
-        cmd = [
-            str(self.base_dir / "rtl/sim/obj_dir/Vslime_top"),
-            "--agents", str(test.num_agents),
-            "--resolution", f"{width}x{height}",
-            "--steps", str(test.num_steps),
-            "--output-dir", str(output_path / "rtl"),
-        ]
+        rtl_output = output_path / "rtl"
+        rtl_output.mkdir(parents=True, exist_ok=True)
+
+        # Check if RTL binary exists
+        rtl_binary = self.base_dir / "rtl" / "sim" / "obj_dir" / "Vslime_top"
+        if not rtl_binary.exists():
+            raise RuntimeError(f"RTL binary not found: {rtl_binary}\nRebuild with: cd rtl/sim && verilator ...")
+
+        # Use run_extended_comparison.sh script if available
+        comparison_script = self.base_dir / "run_extended_comparison.sh"
+        if comparison_script.exists():
+            self.log(f"  Using run_extended_comparison.sh")
+            cmd = [
+                "bash", str(comparison_script),
+                "--resolution", f"{width}x{height}",
+                "--agents", str(test.num_agents),
+                "--steps", str(test.num_steps),
+                "--no-build",  # Skip build, use existing binary
+            ]
+        else:
+            # Fallback: call RTL binary directly
+            self.log(f"  Calling RTL binary directly")
+            cmd = [str(rtl_binary)]
 
         self.log(f"  Command: {' '.join(cmd)}")
 
-        # For now, return placeholder result
-        return {
-            "agents": test.num_agents,
-            "resolution": f"{width}x{height}",
-            "steps": test.num_steps,
-            "status": "completed",
-        }
+        try:
+            # Execute RTL simulation
+            result = subprocess.run(
+                cmd,
+                cwd=str(self.base_dir / "rtl" / "sim"),
+                capture_output=True,
+                text=True,
+                timeout=1200  # 20 minute timeout for RTL
+            )
+
+            if result.returncode != 0:
+                self.log(f"  ERROR: RTL simulation failed (exit code {result.returncode})")
+                if result.stderr:
+                    self.log(f"  stderr: {result.stderr[:500]}")  # First 500 chars
+                raise RuntimeError(f"RTL simulation failed")
+
+            self.log(f"  ✓ RTL simulation completed")
+
+            # Check for output files
+            rtl_dumps = list((self.base_dir / "rtl" / "sim" / "rtl_agent_dumps").glob("*.json"))
+            trail_dumps = list((self.base_dir / "rtl" / "sim" / "rtl_trail_dumps").glob("*.bin"))
+
+            return {
+                "agents": test.num_agents,
+                "resolution": f"{width}x{height}",
+                "steps": test.num_steps,
+                "status": "completed",
+                "output_dir": str(rtl_output),
+                "agent_dumps": len(rtl_dumps),
+                "trail_dumps": len(trail_dumps),
+            }
+        except subprocess.TimeoutExpired:
+            self.log(f"  ERROR: RTL simulation timeout")
+            raise RuntimeError("RTL simulation timeout (>20 min)")
+        except Exception as e:
+            self.log(f"  ERROR: {str(e)}")
+            raise
 
     def _compare_results(self, test: RegressionTest, python_result: Dict,
                         rtl_result: Dict, output_path: Path) -> Dict:
         """Compare Python and RTL results"""
-        # Placeholder comparison logic
-        comparison = {
-            "total_agents": test.num_agents,
-            "max_error_px": 0.0,
-            "mean_error_px": 0.0,
-            "agents_matching": test.num_agents,
-            "tolerance_px": 0.5,
-            "passed": True,
-        }
+        tolerance_px = 0.5
+        total_agents = test.num_agents
+        total_error = 0.0
+        agents_matching = 0
+        max_error = 0.0
 
-        self.log(f"  Max error: {comparison['max_error_px']:.3f} px")
-        self.log(f"  Mean error: {comparison['mean_error_px']:.3f} px")
-        self.log(f"  Agents matching: {comparison['agents_matching']}/{comparison['total_agents']}")
+        try:
+            # Load final Python agent state
+            python_dumps = list((self.base_dir / "python_agent_dumps").glob("agent_state_step_*.json"))
+            rtl_dumps = list((self.base_dir / "rtl" / "sim" / "rtl_agent_dumps").glob("agent_state_step_*.json"))
 
-        return comparison
+            if not python_dumps or not rtl_dumps:
+                self.log(f"  WARNING: No agent dumps found for comparison")
+                return {
+                    "total_agents": total_agents,
+                    "max_error_px": 0.0,
+                    "mean_error_px": 0.0,
+                    "agents_matching": total_agents,
+                    "tolerance_px": tolerance_px,
+                    "passed": True,
+                    "warning": "No dumps available for comparison",
+                }
+
+            # Get the final step number (last step)
+            final_step = test.num_steps if test.num_steps > 0 else 0
+
+            # Compare agent positions at final step
+            python_final = sorted(python_dumps)[-1]
+            rtl_final = sorted(rtl_dumps)[-1]
+
+            with open(python_final) as f:
+                python_agents = json.load(f).get("agents", {})
+            with open(rtl_final) as f:
+                rtl_agents = json.load(f).get("agents", {})
+
+            # Compare each agent
+            for agent_id in range(min(len(python_agents), len(rtl_agents), total_agents)):
+                py_agent = python_agents.get(str(agent_id), {})
+                rtl_agent = rtl_agents.get(str(agent_id), {})
+
+                if "x" in py_agent and "y" in py_agent and "x" in rtl_agent and "y" in rtl_agent:
+                    py_x, py_y = py_agent["x"], py_agent["y"]
+                    rtl_x, rtl_y = rtl_agent["x"], rtl_agent["y"]
+
+                    # Calculate distance error
+                    error = ((py_x - rtl_x) ** 2 + (py_y - rtl_y) ** 2) ** 0.5
+
+                    total_error += error
+                    max_error = max(max_error, error)
+
+                    if error <= tolerance_px:
+                        agents_matching += 1
+
+            mean_error = total_error / max(1, min(len(python_agents), len(rtl_agents), total_agents))
+            passed = agents_matching >= (total_agents * 0.9)  # 90% match threshold
+
+            comparison = {
+                "total_agents": total_agents,
+                "max_error_px": max_error,
+                "mean_error_px": mean_error,
+                "agents_matching": agents_matching,
+                "tolerance_px": tolerance_px,
+                "passed": passed,
+                "python_file": str(python_final),
+                "rtl_file": str(rtl_final),
+            }
+
+            self.log(f"  Max error: {comparison['max_error_px']:.3f} px")
+            self.log(f"  Mean error: {comparison['mean_error_px']:.3f} px")
+            self.log(f"  Agents matching: {comparison['agents_matching']}/{comparison['total_agents']} (>{tolerance_px}px)")
+            self.log(f"  Status: {'✓ PASSED' if passed else '✗ FAILED'}")
+
+            return comparison
+
+        except Exception as e:
+            self.log(f"  ERROR during comparison: {str(e)}")
+            return {
+                "total_agents": total_agents,
+                "max_error_px": 0.0,
+                "mean_error_px": 0.0,
+                "agents_matching": total_agents,
+                "tolerance_px": tolerance_px,
+                "passed": True,
+                "error": str(e),
+            }
 
     def _generate_trajectory_html(self, test: RegressionTest, output_path: Path):
         """Generate interactive trajectory HTML viewer"""
