@@ -226,10 +226,23 @@ class RegressionTestRunner:
         rtl_output = output_path / "rtl"
         rtl_output.mkdir(parents=True, exist_ok=True)
 
-        # Check if RTL binary exists
-        rtl_binary = self.base_dir / "rtl" / "sim" / "obj_dir" / "Vslime_top"
-        if not rtl_binary.exists():
-            raise RuntimeError(f"RTL binary not found: {rtl_binary}\nRebuild with: cd rtl/sim && verilator ...")
+        # Check if RTL binary exists (try multiple names)
+        rtl_sim_dir = self.base_dir / "rtl" / "sim" / "obj_dir"
+        rtl_binaries = [
+            rtl_sim_dir / "Vslime_top",
+            rtl_sim_dir / "slime_verilator_full",
+            rtl_sim_dir / "Vslime_top_agent",
+        ]
+
+        rtl_binary = None
+        for binary in rtl_binaries:
+            if binary.exists():
+                rtl_binary = binary
+                break
+
+        if not rtl_binary:
+            available = ", ".join([b.name for b in rtl_binaries])
+            raise RuntimeError(f"RTL binary not found. Tried: {available}\nRebuild with: cd rtl/sim && make verilator")
 
         # Use run_extended_comparison.sh script if available
         comparison_script = self.base_dir / "run_extended_comparison.sh"
