@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-You need both the Python simulator and RTL binary built.
+You need the Python simulator and Verilator toolchain available.
 
 ### 1. Verify Python Simulator
 
@@ -12,21 +12,41 @@ python slime_simulator.py --agents 10 --steps 5
 
 Should complete without errors.
 
-### 2. Verify RTL Binary
+### 2. Verify Verilator is Installed
 
-Check that the RTL binary exists:
-
-```bash
-ls -la rtl/sim/obj_dir/slime_verilator_full
-```
-
-If it doesn't exist, rebuild:
+The regression tests will **automatically compile the RTL binary for each test** with the appropriate parameters (resolution, agents, steps). You just need Verilator installed:
 
 ```bash
-cd rtl/sim
-make clean
-# Then rebuild using the appropriate makefile or script
+verilator --version
 ```
+
+If not installed:
+```bash
+# Ubuntu/Debian
+sudo apt-get install verilator
+
+# macOS
+brew install verilator
+```
+
+### 3. Optional: Verify run_extended_comparison.sh
+
+Check if the comparison script exists (preferred, faster):
+
+```bash
+ls run_extended_comparison.sh
+```
+
+If it doesn't exist, the test runner will use manual Verilator compilation.
+
+### Important: RTL Recompilation
+
+Each test case is compiled with its specific parameters:
+- **Resolution** - Different canvas sizes (320x240, 640x480, etc.)
+- **Agent Count** - Number of agents (100, 500, 1000, etc.)
+- **Step Count** - Simulation duration (5, 10, 50, 100, etc.)
+
+This means the first run will take longer due to compilation. Subsequent tests with the same parameters will reuse the compiled binary if available.
 
 ## Running Tests
 
@@ -38,7 +58,7 @@ Quick test to verify everything works:
 python run_regression_tests.py --test-id 1
 ```
 
-Expected output:
+Expected output (first run includes compilation):
 ```
 ================================================================================
 Test 1: smoke_test_100
@@ -50,7 +70,8 @@ Type: smoke | Agents: 100 | Resolution: 320x240 | Steps: 10
   ✓ Python simulation completed
 
 [2/3] Running RTL simulation...
-  Using slime_verilator_full binary
+  Compiling RTL for: 320x240, 100 agents, 10 steps
+  Using run_extended_comparison.sh (rebuilds RTL with parameters)
   ✓ RTL simulation completed
 
 [3/3] Comparing Python vs RTL...
@@ -60,13 +81,15 @@ Type: smoke | Agents: 100 | Resolution: 320x240 | Steps: 10
   Status: ✓ PASSED
 ```
 
+**Note**: First run will take ~3-5 minutes due to Verilator compilation. Subsequent tests may be faster if parameters are reused.
+
 ### Run All Smoke Tests (Fast)
 
 ```bash
 python run_regression_tests.py --test-type smoke
 ```
 
-Takes ~10-20 seconds per test.
+Takes ~3-5 minutes per test (includes Verilator compilation).
 
 ### Run Integration Tests (Full Comparison)
 
@@ -74,7 +97,7 @@ Takes ~10-20 seconds per test.
 python run_regression_tests.py --test-type integration
 ```
 
-Takes ~1-5 minutes per test (depending on agents/steps).
+Takes ~5-15 minutes per test (includes compilation, depends on agents/steps).
 
 ### Run All Tests
 
@@ -82,7 +105,10 @@ Takes ~1-5 minutes per test (depending on agents/steps).
 python run_regression_tests.py
 ```
 
-Runs all 10 tests. Takes ~30-60 minutes depending on hardware.
+Runs all 10 tests. Total time: ~2-4 hours depending on hardware and compilation cache.
+- First test: 3-5 min (fresh compilation)
+- Subsequent tests with same params: 1-3 min (reuse binary)
+- Different params: 3-5 min (recompile)
 
 ### Run Without RTL (Python Only)
 
