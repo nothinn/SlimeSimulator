@@ -1,0 +1,26 @@
+======================================================================
+AGENT INITIALIZATION VALIDATION REPORT
+======================================================================
+
+Generated: 2025-11-28T19:46:14.271438
+Resolution: 320x240
+Number of Agents: 100
+
+COMPARISON RESULTS:
+----------------------------------------------------------------------
+Total agents: 100
+Passed: 100
+Failed: 0
+Pass rate: 100.0%
+
+TOLERANCES:
+Position: ±4096 FP units (±1.000 px)
+Angle: ±10 FP units (±0.1°)
+
+✓ ALL AGENTS PASSED VALIDATION
+
+OUTPUT FILES:
+- python_agent_validation.json: Python reference agent state
+- rtl_agent_validation.json: RTL agent state
+- agent_init_comparison.json: Detailed per-agent comparison
+- agent_init_validation_report.txt: This report

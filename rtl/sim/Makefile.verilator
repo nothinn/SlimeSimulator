@@ -1,7 +1,7 @@
 # Verilator Makefile for Slime Simulator RTL Simulation
 
 VERILATOR = verilator
-VERILATOR_FLAGS = --cc --trace --build -j 4 -O3 -Wno-WIDTH -Wno-WIDTHTRUNC
+VERILATOR_FLAGS = --cc --trace -j 4 -O3 -Wno-WIDTH -Wno-WIDTHTRUNC -Wno-CMPCONST -Wno-UNSIGNED
 
 RTL_TOP = ../src/slime_top.sv
 RTL_SOURCES = \
@@ -34,8 +34,12 @@ sim: $(RTL_SOURCES) $(TB_SOURCES)
 		--top-module slime_top \
 		--Mdir $(BUILD_DIR) \
 		-CFLAGS "-std=c++17" \
+		--exe \
 		$(RTL_SOURCES) \
 		$(TB_SOURCES)
+	@echo ""
+	@echo "Building executable in $(BUILD_DIR)..."
+	$(MAKE) -C $(BUILD_DIR) -f Vslime_top.mk
 	@echo ""
 	@echo "Binary: $(BIN)"
 

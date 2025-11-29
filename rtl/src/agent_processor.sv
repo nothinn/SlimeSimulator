@@ -134,12 +134,15 @@ module agent_processor #(
     // Simplified: idx = angle[TRIG_BITS+FRAC_BITS-1:FRAC_BITS] when TWO_PI maps to TABLE_SIZE
     function automatic [TRIG_BITS-1:0] angle_to_idx(input signed [FP_TOTAL-1:0] angle);
         logic signed [FP_TOTAL-1:0] normalized;
+        logic [24:0] scaled;  // Need enough bits for (normalized << 10)
         // Normalize angle to [0, TWO_PI)
         normalized = angle;
         while (normalized < 0) normalized = normalized + TWO_PI_FP;
         while (normalized >= TWO_PI_FP) normalized = normalized - TWO_PI_FP;
-        // Scale to table index
-        return normalized[TRIG_BITS + FP_FRAC_BITS - 1 : FP_FRAC_BITS];
+        // Scale from [0, TWO_PI) to [0, 1024) by multiplying by 1024 and dividing by TWO_PI_FP
+        // Formula: idx = (angle * 1024) / (2π in FP) = (angle << 10) / 25737
+        scaled = (normalized << 10) / 25737;
+        return scaled[TRIG_BITS-1:0];
     endfunction
 
     // Position to pixel coordinate
@@ -298,22 +301,27 @@ module agent_processor #(
                 end
 
                 SENSORY_DECISION: begin
-                    // Sensory decision logic
+                    // Sensory decision logic (EXACTLY matches Python slime_simulator.py)
+                    // case1: F > FL AND F > FR -> no change
                     if ((trail_forward > trail_left) && (trail_forward > trail_right)) begin
-                        // Forward is best - no change
                         new_angle <= angle_reg;
                     end
+                    // case2: F < FL AND F < FR -> random turn
                     else if ((trail_forward < trail_left) && (trail_forward < trail_right)) begin
-                        // Forward is worst - random turn
                         new_angle <= lfsr_bit ? (angle_reg + turn_speed) : (angle_reg - turn_speed);
                     end
-                    else if (trail_left > trail_right) begin
-                        // Left is better - turn left
+                    // case3: FL < FR AND NOT case1 AND NOT case2 -> turn right
+                    else if ((trail_left < trail_right)) begin
+                        new_angle <= angle_reg - turn_speed;
+                    end
+                    // case4: FR < FL AND NOT case1 AND NOT case2 AND NOT case3 -> turn left
+                    // (only executed if FL >= FR after case3 check)
+                    else if ((trail_right < trail_left)) begin
                         new_angle <= angle_reg + turn_speed;
                     end
+                    // Fallback: all equal (or FL == FR), no change
                     else begin
-                        // Right is better - turn right
-                        new_angle <= angle_reg - turn_speed;
+                        new_angle <= angle_reg;
                     end
                 end
 

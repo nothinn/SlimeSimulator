@@ -11,10 +11,10 @@
 #include <algorithm>
 
 // Full simulation with real agent processing
-const int NUM_AGENTS = 1000;
+const int NUM_AGENTS = 100;
 const int WIDTH = 320;
 const int HEIGHT = 240;
-const int NUM_STEPS = 3;      // 10× longer: 1000 → 10000
+const int NUM_STEPS = 10;      // 10× longer: 1000 → 10000
 const int DUMP_INTERVAL = 10;     // 10× more frequent: 100 → 10
 
 // Trail map: 18-bit unsigned integers
@@ -340,8 +340,9 @@ public:
         // Calculate total cycles needed
         // Each agent takes ~19 cycles through processor
         // 100 agents × 19 cycles = 1900 cycles per step
-        // Plus overhead for state machine transitions
-        int cycles_per_step = NUM_AGENTS * 25;  // Conservative estimate
+        // Plus overhead for state machine transitions and trail writes
+        // Use 30x multiplier to ensure ALL agents complete fully
+        int cycles_per_step = NUM_AGENTS * 30;  // Generous estimate with safety margin
         int total_cycles = NUM_STEPS * cycles_per_step;
 
         std::cout << "\n[TB] Running simulation for " << total_cycles << " cycles ("

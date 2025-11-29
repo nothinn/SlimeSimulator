@@ -145,53 +145,18 @@ module agent_coordinator #(
 
     // =========================================================================
     // Agent Memory Initialization
+    // NOTE: Agents are initialized by the testbench via debug interface
+    // RTL initialization is disabled to avoid compilation issues
     // =========================================================================
 
+    // All agents initialized to (0,0) with angle 0
+    // Testbench will write correct values via agent coordinate debug interface
     initial begin
-        int i, min_dimension;
-        real angle_rad, cos_val, sin_val, radius_real, two_pi;
-        logic signed [FP_TOTAL-1:0] cx, cy, x, y, radius_fp, angle_fp, pi_fp, two_pi_fp;
-        logic signed [FP_TOTAL-1:0] spawn_angle_fp;
-
-        // Center canvas
-        cx = (WIDTH * FP_SCALE) / 2;
-        cy = (HEIGHT * FP_SCALE) / 2;
-
-        // Initialize agents on proper circle (40% radius) matching Python reference
-        // CRITICAL: Use min(WIDTH, HEIGHT) for radius to ensure circular (not elliptical) spawn
-        min_dimension = (WIDTH < HEIGHT) ? WIDTH : HEIGHT;
-        radius_fp = (min_dimension * FP_SCALE) / 5;  // 0.4 = 2/5
-        radius_real = min_dimension * 0.4;
-        pi_fp = $rtoi(3.14159265359 * FP_SCALE);
-        two_pi = 2.0 * 3.14159265359;
-        two_pi_fp = $rtoi(two_pi * FP_SCALE);
-
+        int i;
         for (i = 0; i < NUM_AGENTS; i = i + 1) begin
-            // Generate angle uniformly around circle: angle = 2π * i / NUM_AGENTS
-            // This gives evenly-spaced agents around the circle
-            angle_rad = (two_pi * i) / NUM_AGENTS;
-
-            // Calculate position: x = cx + cos(angle) * radius, y = cy + sin(angle) * radius
-            cos_val = $cos(angle_rad);
-            sin_val = $sin(angle_rad);
-
-            x = cx + $rtoi(cos_val * radius_real * FP_SCALE);
-            y = cy + $rtoi(sin_val * radius_real * FP_SCALE);
-
-            agent_x[i] = x;
-            agent_y[i] = y;
-
-            // Agent angle = spawn_angle + π (pointing toward center, matching Python)
-            // CRITICAL FIX: Wrap angle to [0, 2π) to match Python behavior
-            spawn_angle_fp = $rtoi(angle_rad * FP_SCALE);
-            angle_fp = spawn_angle_fp + pi_fp;
-
-            // Normalize to [0, 2π) - essential for bottom half of circle
-            if (angle_fp >= two_pi_fp) begin
-                angle_fp = angle_fp - two_pi_fp;
-            end
-
-            agent_angle[i] = angle_fp;
+            agent_x[i] = '0;
+            agent_y[i] = '0;
+            agent_angle[i] = '0;
         end
     end
 

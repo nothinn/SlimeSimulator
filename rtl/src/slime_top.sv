@@ -146,8 +146,9 @@ module slime_top #(
         end
     end
 
-    // Scale move speed based on level (0.25x to 2x)
-    assign current_move_speed = (DEFAULT_MOVE_SPEED * (speed_level + 4)) >> 4;
+    // FIX #5: Use fixed move_speed = 1.0 (no scaling) to match Python reference
+    // Original had: (DEFAULT_MOVE_SPEED * (speed_level + 4)) >> 4 which reduced speed by 4x
+    assign current_move_speed = DEFAULT_MOVE_SPEED;  // 1.0 pixel/step
 
     // =========================================================================
     // LFSR Random Number Generator

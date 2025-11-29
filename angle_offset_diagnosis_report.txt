@@ -1,0 +1,148 @@
+================================================================================
+ANGLE OFFSET DIAGNOSTIC TOOL
+================================================================================
+
+RTL agents: /home/reson/SlimeSimulator/rtl/sim/rtl_agent_dumps/agent_state_step_00000.json
+
+Loading RTL agent data...
+Loaded 100 agents from RTL
+
+Using simulation parameters: 320x240
+
+================================================================================
+AGENT-BY-AGENT COMPARISON (First 20 agents)
+================================================================================
+ID      RTL Ang   Exp Python    Exp RTL    Δ vs Py    Δ vs RTL
+--------------------------------------------------------------------------------
+0       179.99°      180.00°    180.00°     -0.01°      -0.01°
+1       180.34°     -176.40°    183.60°     -3.26°      -3.26°
+2       180.70°     -172.80°    187.20°     -6.50°      -6.50°
+3       181.06°     -169.20°    190.80°     -9.74°      -9.74°
+4       181.41°     -165.60°    194.40°    -12.99°     -12.99°
+5       181.78°     -162.00°    198.00°    -16.22°     -16.22°
+6       182.14°     -158.40°    201.60°    -19.46°     -19.46°
+7       182.50°     -154.80°    205.20°    -22.70°     -22.70°
+8       182.85°     -151.20°    208.80°    -25.95°     -25.95°
+9       183.22°     -147.60°    212.40°    -29.18°     -29.18°
+10      183.58°     -144.00°    216.00°    -32.42°     -32.42°
+11      183.95°     -140.40°    219.60°    -35.65°     -35.65°
+12      184.29°     -136.80°    223.20°    -38.91°     -38.91°
+13      184.66°     -133.20°    226.80°    -42.14°     -42.14°
+14      185.02°     -129.60°    230.40°    -45.38°     -45.38°
+15      185.39°     -126.00°    234.00°    -48.61°     -48.61°
+16      185.74°     -122.40°    237.60°    -51.86°     -51.86°
+17      186.10°     -118.80°    241.20°    -55.10°     -55.10°
+18      186.46°     -115.20°    244.80°    -58.34°     -58.34°
+19      186.81°     -111.60°    248.40°    -61.59°     -61.59°
+
+================================================================================
+RTL ACTUAL vs RTL EXPECTED ANALYSIS
+================================================================================
+RTL actual angles vs RTL expected (based on RTL init logic):
+  Mean difference:  -0.034914 rad =    -2.00°
+  Std Dev:           1.907161 rad =   109.27°
+  Max abs diff:      3.116173 rad =   178.54°
+
+⚠ RTL angles DON'T match RTL initialization logic!
+  There may be a bug in the RTL implementation.
+
+RTL actual angles vs Python expected:
+  Mean difference:  -0.034914 rad =    -2.00°
+  Std Dev:           1.907161 rad =   109.27°
+
+================================================================================
+INITIALIZATION METHOD COMPARISON
+================================================================================
+
+Python initialization:
+  angle = arctan2(cy - y, cx - x)
+  This gives angle in range [-π, π]
+
+RTL initialization:
+  angle = spawn_angle + π
+  angle = normalize_to_0_2pi(angle)
+  This gives angle in range [0, 2π]
+
+After converting Python angles to [0, 2π]:
+  Mean difference:  -0.034914 rad =    -2.00°
+  Std Dev:           1.907161 rad =   109.27°
+
+================================================================================
+POSITION DISTRIBUTION ANALYSIS
+================================================================================
+RTL X positions:
+  Mean:   249.8982, Std Dev:     5.4423
+  Min:    238.0186, Max:   256.0000
+
+RTL Y positions:
+  Mean:   148.8977, Std Dev:    16.4190
+  Min:    120.0000, Max:   175.9382
+
+Expected spawn pattern (Python reference):
+  Center: (160.0, 120.0)
+  Radius: 96.0
+  Expected X range: [64.00, 256.00]
+  Expected Y range: [24.00, 216.00]
+
+Actual RTL spawn pattern (inferred from agent positions):
+  Center: (249.8982, 148.8977)
+
+Distance from EXPECTED center (160.0, 120.0):
+  Mean:    95.9999 (expected: 96.0000)
+  Std Dev:     0.0001
+
+Distance from ACTUAL RTL center (249.90, 148.90):
+  Mean:    15.0954 (expected: 96.0000)
+  Std Dev:     8.4458 (expected: ~0.00)
+
+WARNING: Agents are NOT uniformly distributed on a circle!
+This indicates the RTL initialization may have failed.
+
+================================================================================
+FINAL DIAGNOSIS
+================================================================================
+
+KEY FINDINGS:
+
+1. AGENT POSITIONS:
+   ✓ Agents are perfectly distributed on a circle (radius=96.00)
+   ✓ Circle center: (160.0, 120.0)
+   → Position initialization is CORRECT
+
+2. AGENT ANGLES:
+   ✗ RTL angles DON'T match RTL initialization logic
+   ✗ Expected (spawn_angle + π): spans full [0, 2π] range
+   ✗ Actual RTL angles: clustered around 180° ± small range
+
+   Example (agent 5):
+     Expected: 198.00°
+     Actual:   181.78°
+     Difference: -16.22°
+
+3. ROOT CAUSE:
+   The agent dump at step 0 contains angles AFTER first processing cycle,
+   NOT the initial values from the `initial` block!
+
+   In agent_coordinator.sv:
+     - initial block sets: angle = spawn_angle + π
+     - RUNNING state overwrites: agent_angle <= latched_angle_out
+
+   The 'step 0' dump shows POST-PROCESSING angles, not INITIALIZATION angles.
+
+4. IMPLICATION:
+   The angle mismatch is NOT in initialization - it's in the
+   AGENT PROCESSOR movement/update logic!
+
+   The agent processor is calculating DIFFERENT angles than expected.
+   This could be due to:
+     • sin/cos swapped in movement calculation
+     • Angle update formula error
+     • Coordinate system mismatch (Y-up vs Y-down)
+
+5. NEXT STEPS:
+   To confirm, check:
+     a) Agent angles BEFORE first step (need pre-RUNNING dump)
+     b) Agent processor angle calculation in agent_processor.sv
+     c) Movement/sensor logic for sin/cos usage
+
+================================================================================
