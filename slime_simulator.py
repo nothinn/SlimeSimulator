@@ -152,15 +152,38 @@ class FixedPoint:
         return values.astype(np.float64) / self.scale
 
     def multiply(self, a: int, b: int) -> int:
-        """Fixed-point multiplication with proper scaling."""
+        """Fixed-point multiplication with proper scaling.
+
+        Properly handles signed arithmetic for operands that may be stored as
+        unsigned 2's complement (e.g., from TrigLUT).
+        """
+        # Sign-extend operands (25-bit to 64-bit signed)
+        a_signed = self._to_signed_25bit(a)
+        b_signed = self._to_signed_25bit(b)
+
         # Multiply and shift right by fractional bits
-        result = (a * b) >> self.fractional_bits
+        result = (a_signed * b_signed) >> self.fractional_bits
         return result
 
     def multiply_array(self, a: np.ndarray, b: np.ndarray) -> np.ndarray:
-        """Fixed-point array multiplication."""
-        result = (a.astype(np.int64) * b.astype(np.int64)) >> self.fractional_bits
+        """Fixed-point array multiplication.
+
+        Properly handles signed arithmetic for operands that may be stored as
+        unsigned 2's complement (e.g., from TrigLUT).
+        """
+        # Sign-extend operands (25-bit to 64-bit signed)
+        a_signed = np.where(a >= (1 << 24), a - (1 << 25), a).astype(np.int64)
+        b_signed = np.where(b >= (1 << 24), b - (1 << 25), b).astype(np.int64)
+
+        # Multiply and shift right by fractional bits
+        result = (a_signed * b_signed) >> self.fractional_bits
         return result.astype(np.int64)
+
+    def _to_signed_25bit(self, val: int) -> int:
+        """Convert 25-bit unsigned 2's complement to signed int."""
+        if val >= (1 << 24):
+            return val - (1 << 25)
+        return val
 
     def divide(self, a: int, b: int) -> int:
         """Fixed-point division with proper scaling."""
@@ -184,6 +207,9 @@ class TrigLUT:
     """
     Lookup table for sine and cosine in fixed-point.
     Uses a quarter-wave table with symmetry for full 2*pi range.
+
+    IMPORTANT: Returns unsigned 2's complement values matching RTL hex files.
+    Negative values are stored as (1 << 25) + signed_value to match gen_trig_lut.py.
     """
 
     def __init__(self, fp: FixedPoint, table_bits: int = 10):
@@ -204,9 +230,15 @@ class TrigLUT:
         quarter_size = self.table_size // 4
 
         # Build sine table for one full period
+        # CRITICAL: Generate unsigned 2's complement values matching RTL
         angles = np.linspace(0, 2 * np.pi, self.table_size, endpoint=False)
-        self.sin_table = fp.to_fixed_array(np.sin(angles))
-        self.cos_table = fp.to_fixed_array(np.cos(angles))
+        sin_signed = fp.to_fixed_array(np.sin(angles))
+        cos_signed = fp.to_fixed_array(np.cos(angles))
+
+        # Convert negative values to unsigned 2's complement (25-bit)
+        # This matches gen_trig_lut.py: if val < 0: val = (1 << 25) + val
+        self.sin_table = np.where(sin_signed < 0, (1 << 25) + sin_signed, sin_signed).astype(np.int64)
+        self.cos_table = np.where(cos_signed < 0, (1 << 25) + cos_signed, cos_signed).astype(np.int64)
 
         # Fixed-point representation of 2*pi for angle wrapping
         self.two_pi_fixed = fp.to_fixed(2 * np.pi)
