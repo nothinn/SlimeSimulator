@@ -10,6 +10,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Essential Build & Test Commands
 
+### Regression Test Suite (Primary Testing Method)
+```bash
+# Run all 10 regression tests (comprehensive validation)
+source .venv/bin/activate
+python3 run_regression_tests.py
+
+# Outputs to: regression_results/{1_smoke_test, 2_init_validation, ..., 10_long_duration}/
+# Each test includes:
+#   - python_agent_dumps/: Agent states from Python simulation
+#   - rtl_agent_dumps/: Agent states from RTL simulation
+#   - trajectory_comparison.csv: Side-by-side Python vs RTL comparison
+#   - trajectory_viewer.html: Interactive visualization of all steps
+#   - test_statistics.json: Detailed comparison metrics
+#   - comparison_images/: Frame-by-frame visual comparison (if enabled)
+```
+
+**Test Configuration:** See `regression_tests.csv` for:
+- 10 tests covering smoke, unit, integration, performance, and stress scenarios
+- Tests range from 1 to 2000 steps, 10 to 1000 agents, 320×240 to 640×480 resolution
+- Configurable Python/RTL enable flags, output generation options
+
+**Current Status:** 9/10 tests report FAILED (RTL movement bugs), 1/10 PASSED (RTL disabled)
+
 ### Python Reference Model
 ```bash
 # Run full simulation (100 agents, 100 steps)
@@ -338,13 +361,54 @@ The `run_extended_comparison.sh` script provides a parametrized interface for RT
 - ✅ Trail decay (0.95 multiplier per step)
 - ✅ Vivado build flow validated
 - ✅ Pin constraints for Basys3
+- ✅ **Regression test framework with 10 comprehensive tests**
+  - Per-test output isolation with numbered folders (1_smoke_test, 2_init_validation, etc.)
+  - CSV-driven configuration (regression_tests.csv)
+  - Python vs RTL comparison with agent state dumps
+  - Trajectory visualization HTML viewers showing all simulation steps
+  - Test-specific RTL compilation with configurable parameters
+  - Proper failure reporting (9/10 tests correctly report as FAILED due to RTL bugs)
+- ✅ **RTL Agent Initialization Interface**
+  - Write interface added to agent_coordinator.sv for initialization
+  - Testbench writes pre-computed agent states (x, y, angle) to RTL
+  - Agents initialize correctly at step 0 (error 0.0 vs Python)
+  - Circle spawn pattern properly loaded into RTL memory
+- ✅ **Test Coverage for All Step Durations**
+  - Python dump script now accepts command-line arguments (--steps, --agents, --width, --height)
+  - Tests with 1-2000 steps now generate complete CSV files and trajectory viewers
+  - Test 10 (2000-step stress test) shows all 2000 steps in CSV
 
-**In Progress:**
-- ⏳ Trail diffusion/blur kernel implementation
-- ⏳ Full end-to-end FPGA hardware testing
+**In Progress / Recently Fixed (Dec 1):**
+- ✅ Python Fixed-Point Arithmetic (FIX COMPLETE)
+  - TrigLUT now generates unsigned 2's complement values matching RTL format
+  - FixedPoint.multiply() properly sign-extends 25-bit operands before multiplication
+  - Python step 0→1 movement now correct (-1.0 px verified)
+- ✅ RTL Testbench Step 0 Dumping Timing (FIX COMPLETE)
+  - Step 0 now dumps immediately after initialization, before processing begins
+  - Eliminates "step 0 shows post-processed state" timing bug
+  - Step 0 now correctly captures pure initialization state matching Python
+- ✅ RTL Agent Initialization Verification (VERIFIED WORKING)
+  - Debug interface write/read verified working correctly
+  - Agent 0 correctly initialized at x=256.0, y=120.0 (no corruption)
+  - No issues in initialization pathway
+
+**Known RTL Issues Identified (Blocking Test Success):**
+- ❌ **RTL 2x Movement Scale Factor** - NEWLY ISOLATED
+  - RTL step 0→1 shows -2.0 px movement instead of expected -1.0 px
+  - Initialization verified correct, movement calculation produces 2x error
+  - Root cause in agent_processor.sv movement calculation (fixed_point_mult or move_speed)
+  - Verified correct: cos LUT values, angle-to-index conversion, initialization
+  - Investigation needed: multiply result scaling, move_speed constant handling
+- ✅ **RTL Agent Movement NOT Frozen** (Previous assumption was incorrect)
+  - Agents DO move at step 0→1 (error was in dump timing, now fixed)
+  - Movement magnitude is 2x expected (separate bug from frozen movement)
+- 🔍 **Pending Investigation**
+  - RTL Y-axis movement (appears to work for initialization but needs step 1→2 verification)
+  - RTL angle logic and sensory decision execution
 
 **Not Yet Implemented:**
 - 🔲 Trail diffusion (blur effect)
+- 🔲 Fix RTL 2x movement scale factor in agent_processor.sv
 - 🔲 Full integration test on Basys3 hardware
 - 🔲 UART parameter update interface
 
