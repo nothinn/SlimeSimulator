@@ -42,7 +42,11 @@ module agent_coordinator #(
     // Agent debug interface (for initialization validation)
     input  logic [9:0]  debug_agent_idx,     // Agent index (0-999)
     input  logic [1:0]  debug_agent_sel,     // 0=x, 1=y, 2=angle
-    output logic signed [FP_TOTAL-1:0] debug_agent_data     // Agent state output
+    output logic signed [FP_TOTAL-1:0] debug_agent_data,    // Agent state output
+
+    // Agent initialization write interface
+    input  logic debug_agent_write_en,                        // Write enable
+    input  logic signed [FP_TOTAL-1:0] debug_agent_data_write // Data to write
 );
 
     // Fixed-point scale
@@ -345,6 +349,22 @@ module agent_coordinator #(
             2'b10:   debug_agent_data = agent_angle[debug_idx_safe];
             default: debug_agent_data = '0;
         endcase
+    end
+
+    // =========================================================================
+    // Agent Write Interface - Allow testbench to initialize agents
+    // =========================================================================
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            // Reset handled by initial block above
+        end else if (debug_agent_write_en) begin
+            case (debug_agent_sel)
+                2'b00: agent_x[debug_idx_safe] <= debug_agent_data_write;
+                2'b01: agent_y[debug_idx_safe] <= debug_agent_data_write;
+                2'b10: agent_angle[debug_idx_safe] <= debug_agent_data_write;
+                default: ; // No-op
+            endcase
+        end
     end
 
 endmodule

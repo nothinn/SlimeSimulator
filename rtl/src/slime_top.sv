@@ -53,7 +53,11 @@ module slime_top #(
     // Agent debug interface (for initialization validation)
     input  logic [9:0]  debug_agent_idx,     // Agent index (0-999)
     input  logic [1:0]  debug_agent_sel,     // 0=x, 1=y, 2=angle
-    output logic [24:0] debug_agent_data     // Agent state output
+    output logic [24:0] debug_agent_data,    // Agent state output
+
+    // Agent initialization write interface
+    input  logic debug_agent_write_en,       // Write enable
+    input  logic [24:0] debug_agent_data_write // Data to write
 );
 
     // =========================================================================
@@ -454,7 +458,10 @@ module slime_top #(
         // Agent debug interface
         .debug_agent_idx(debug_agent_idx),
         .debug_agent_sel(debug_agent_sel),
-        .debug_agent_data(debug_agent_data)
+        .debug_agent_data(debug_agent_data),
+        // Agent write interface
+        .debug_agent_write_en(debug_agent_write_en),
+        .debug_agent_data_write(debug_agent_data_write)
     );
 
     // =========================================================================

@@ -214,14 +214,25 @@ if [[ "$DO_BUILD" == true ]]; then
 
     print_section "Running Verilator (this may take 30-90 seconds)..."
 
-    verilator -cc --trace -Wno-fatal --exe \
+    verilator -cc --trace --exe \
         -I../src \
         --top-module slime_top \
         -GWIDTH=$RESOLUTION_WIDTH \
         -GHEIGHT=$RESOLUTION_HEIGHT \
         -GNUM_AGENTS=$NUM_AGENTS \
+        -Wno-WIDTHEXPAND \
+        -Wno-WIDTHTRUNC \
+        -Wno-CMPCONST \
         -o slime_verilator_full \
-        ../src/slime_top.sv ../src/*.sv \
+        ../src/slime_top.sv \
+        ../src/agent_coordinator.sv \
+        ../src/agent_processor.sv \
+        ../src/fixed_point_mult.sv \
+        ../src/trig_lut.sv \
+        ../src/lfsr.sv \
+        ../src/vga_controller.sv \
+        ../src/debouncer.sv \
+        ../src/debug_wrapper.sv \
         slime_verilator_full_tb.cpp
 
     print_success "Verilator compilation completed"

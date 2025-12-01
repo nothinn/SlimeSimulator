@@ -12,11 +12,15 @@ import csv
 import json
 import subprocess
 import argparse
+import struct
+import glob
 from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass, asdict
 from typing import List, Dict, Optional
 import shutil
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
 
 
 @dataclass
@@ -105,9 +109,19 @@ class RegressionTestRunner:
         )
 
         try:
-            # Create output directory
-            output_path = self.base_dir / test.output_dir
+            # Create output directory structure with test number prepended
+            test_dir_name = f"{test.test_id}_{Path(test.output_dir).name}"
+            output_path = Path(test.output_dir).parent / test_dir_name
+            if not str(output_path).startswith('/'):
+                output_path = self.base_dir / output_path
             output_path.mkdir(parents=True, exist_ok=True)
+
+            # Create test-specific subdirectories
+            (output_path / "python_agent_dumps").mkdir(exist_ok=True)
+            (output_path / "rtl_agent_dumps").mkdir(exist_ok=True)
+            (output_path / "rtl_trail_dumps").mkdir(exist_ok=True)
+            (output_path / "comparison_images").mkdir(exist_ok=True)
+            (output_path / "rtl_binary").mkdir(exist_ok=True)
 
             self.log(f"\n{'='*80}")
             self.log(f"Test {test.test_id}: {test.test_name}")
@@ -142,22 +156,30 @@ class RegressionTestRunner:
             # Generate outputs
             if test.generate_trajectory_html:
                 self.log(f"\nGenerating trajectory HTML...")
-                self._generate_trajectory_html(test, output_path)
+                self._generate_trajectory_html(test, output_path, width, height)
 
             if test.generate_trail_map:
                 self.log(f"Generating trail map visualization...")
-                self._generate_trail_map(test, output_path)
+                self._generate_trail_map(test, output_path, width, height)
 
             if test.generate_comparison_images:
                 self.log(f"Generating comparison images...")
-                self._generate_comparison_images(test, output_path)
+                self._generate_comparison_images(test, output_path, width, height)
 
             if test.generate_statistics:
                 self.log(f"Generating statistics report...")
                 self._generate_statistics(test, output_path, python_result, rtl_result, result.comparison_result)
 
-            result.status = "PASS"
-            self.log(f"\n✓ Test PASSED")
+            # Set test status based on comparison result if available
+            if result.comparison_result and isinstance(result.comparison_result, dict) and 'passed' in result.comparison_result:
+                result.status = "PASS" if result.comparison_result['passed'] else "FAIL"
+                if result.comparison_result['passed']:
+                    self.log(f"\n✓ Test PASSED")
+                else:
+                    self.log(f"\n✗ Test FAILED")
+            else:
+                result.status = "PASS"
+                self.log(f"\n✓ Test PASSED")
 
         except Exception as e:
             result.status = "ERROR"
@@ -174,7 +196,7 @@ class RegressionTestRunner:
 
     def _run_python_sim(self, test: RegressionTest, width: int, height: int,
                        output_path: Path) -> Dict:
-        """Run Python simulation"""
+        """Run Python simulation with test-specific dump directory"""
         py_output = output_path / "python"
         py_output.mkdir(parents=True, exist_ok=True)
 
@@ -206,12 +228,41 @@ class RegressionTestRunner:
 
             self.log(f"  ✓ Python simulation completed")
 
+            # Dump agent states for comparison (to test-specific directory)
+            self.log(f"  Dumping Python agent states...")
+            dump_dir = output_path / "python_agent_dumps"
+
+            # Set environment variable to override output directory
+            env = os.environ.copy()
+            env['PYTHON_AGENT_DUMPS_DIR'] = str(dump_dir)
+
+            dump_cmd = [
+                sys.executable, str(self.base_dir / "dump_python_agent_states.py"),
+                "--steps", str(test.num_steps),
+                "--agents", str(test.num_agents),
+                "--width", str(width),
+                "--height", str(height),
+            ]
+            dump_result = subprocess.run(
+                dump_cmd,
+                cwd=str(self.base_dir),
+                capture_output=True,
+                text=True,
+                timeout=300,  # 5 minute timeout
+                env=env
+            )
+            if dump_result.returncode == 0:
+                self.log(f"  ✓ Agent dumps created in {dump_dir}")
+            else:
+                self.log(f"  WARNING: Failed to dump agent states: {dump_result.stderr}")
+
             return {
                 "agents": test.num_agents,
                 "resolution": f"{width}x{height}",
                 "steps": test.num_steps,
                 "status": "completed",
                 "output_dir": str(py_output),
+                "dump_dir": str(dump_dir),
             }
         except subprocess.TimeoutExpired:
             self.log(f"  ERROR: Python simulation timeout")
@@ -222,7 +273,7 @@ class RegressionTestRunner:
 
     def _run_rtl_sim(self, test: RegressionTest, width: int, height: int,
                      output_path: Path) -> Dict:
-        """Run RTL simulation via Verilator (with recompilation for test parameters)"""
+        """Run RTL simulation and move outputs to test-specific directories"""
         rtl_output = output_path / "rtl"
         rtl_output.mkdir(parents=True, exist_ok=True)
 
@@ -237,6 +288,8 @@ class RegressionTestRunner:
                 "--agents", str(test.num_agents),
                 "--steps", str(test.num_steps),
             ]
+            # Run from base directory where the script is
+            cwd = str(self.base_dir)
         else:
             # Fallback: try to compile RTL manually for the test parameters
             self.log(f"  Compiling RTL manually for: {width}x{height}, {test.num_agents} agents, {test.num_steps} steps")
@@ -248,12 +301,13 @@ class RegressionTestRunner:
                 f"cd {rtl_sim_dir} && "
                 f"verilator --Wno-WIDTH --Wno-CMPCONST --Wno-MULTITOP "
                 f"--cc --exe --build -j 4 "
-                f"-o obj_dir_test/Vslime_top "
+                f"-o obj_dir/slime_verilator_full "
                 f"slime_verilator_full_tb.cpp ../src/slime_top.sv ../src/agent_coordinator.sv "
                 f"../src/agent_processor.sv ../src/fixed_point_mult.sv ../src/trig_lut.sv "
                 f"../src/lfsr.sv ../src/vga_controller.sv ../src/debouncer.sv "
                 f"2>&1 | tee compile.log"
             ]
+            cwd = str(rtl_sim_dir)
 
         self.log(f"  Command: {' '.join(cmd)}")
 
@@ -262,7 +316,7 @@ class RegressionTestRunner:
             # Timeout: 5 minutes for compilation + 20 minutes for simulation = 25 minutes
             result = subprocess.run(
                 cmd,
-                cwd=str(self.base_dir / "rtl" / "sim"),
+                cwd=cwd,
                 capture_output=True,
                 text=True,
                 timeout=1500  # 25 minute timeout (includes Verilator compilation time)
@@ -276,9 +330,12 @@ class RegressionTestRunner:
 
             self.log(f"  ✓ RTL simulation completed")
 
-            # Check for output files
-            rtl_dumps = list((self.base_dir / "rtl" / "sim" / "rtl_agent_dumps").glob("*.json"))
-            trail_dumps = list((self.base_dir / "rtl" / "sim" / "rtl_trail_dumps").glob("*.bin"))
+            # Move RTL outputs to test-specific directories
+            self._collect_rtl_outputs(output_path, width, height)
+
+            # Count dumps in test-specific directories
+            rtl_dumps = list((output_path / "rtl_agent_dumps").glob("*.json"))
+            trail_dumps = list((output_path / "rtl_trail_dumps").glob("*.bin"))
 
             return {
                 "agents": test.num_agents,
@@ -291,14 +348,39 @@ class RegressionTestRunner:
             }
         except subprocess.TimeoutExpired:
             self.log(f"  ERROR: RTL simulation timeout")
-            raise RuntimeError("RTL simulation timeout (>20 min)")
+            raise RuntimeError("RTL simulation timeout (>25 min)")
         except Exception as e:
             self.log(f"  ERROR: {str(e)}")
             raise
 
+    def _collect_rtl_outputs(self, output_path: Path, width: int, height: int):
+        """Move RTL outputs from shared directories to test-specific directories"""
+        # Move RTL agent dumps
+        rtl_agent_dumps_src = self.base_dir / "rtl" / "sim" / "rtl_agent_dumps"
+        rtl_agent_dumps_dst = output_path / "rtl_agent_dumps"
+        if rtl_agent_dumps_src.exists():
+            for dump_file in rtl_agent_dumps_src.glob("*.json"):
+                shutil.copy2(dump_file, rtl_agent_dumps_dst)
+            self.log(f"  ✓ Copied RTL agent dumps to {rtl_agent_dumps_dst}")
+
+        # Move RTL trail dumps
+        rtl_trail_dumps_src = self.base_dir / "rtl" / "sim" / "rtl_trail_dumps"
+        rtl_trail_dumps_dst = output_path / "rtl_trail_dumps"
+        if rtl_trail_dumps_src.exists():
+            for dump_file in rtl_trail_dumps_src.glob("*.bin"):
+                shutil.copy2(dump_file, rtl_trail_dumps_dst)
+            self.log(f"  ✓ Copied RTL trail dumps to {rtl_trail_dumps_dst}")
+
+        # Copy RTL binary
+        rtl_binary_src = self.base_dir / "rtl" / "sim" / "obj_dir" / "slime_verilator_full"
+        rtl_binary_dst = output_path / "rtl_binary" / "slime_verilator_full"
+        if rtl_binary_src.exists():
+            shutil.copy2(rtl_binary_src, rtl_binary_dst)
+            self.log(f"  ✓ Copied RTL binary to {rtl_binary_dst}")
+
     def _compare_results(self, test: RegressionTest, python_result: Dict,
                         rtl_result: Dict, output_path: Path) -> Dict:
-        """Compare Python and RTL results"""
+        """Compare Python and RTL results from test-specific directories"""
         tolerance_px = 0.5
         total_agents = test.num_agents
         total_error = 0.0
@@ -306,9 +388,9 @@ class RegressionTestRunner:
         max_error = 0.0
 
         try:
-            # Load final Python agent state
-            python_dumps = list((self.base_dir / "python_agent_dumps").glob("agent_state_step_*.json"))
-            rtl_dumps = list((self.base_dir / "rtl" / "sim" / "rtl_agent_dumps").glob("agent_state_step_*.json"))
+            # Load final Python agent state from test-specific directory
+            python_dumps = list((output_path / "python_agent_dumps").glob("agent_state_step_*.json"))
+            rtl_dumps = list((output_path / "rtl_agent_dumps").glob("agent_state_step_*.json"))
 
             if not python_dumps or not rtl_dumps:
                 self.log(f"  WARNING: No agent dumps found for comparison")
@@ -330,19 +412,32 @@ class RegressionTestRunner:
             rtl_final = sorted(rtl_dumps)[-1]
 
             with open(python_final) as f:
-                python_agents = json.load(f).get("agents", {})
+                python_data = json.load(f)
+                python_agents = python_data.get("agents", [])
             with open(rtl_final) as f:
-                rtl_agents = json.load(f).get("agents", {})
+                rtl_data = json.load(f)
+                rtl_agents = rtl_data.get("agents", [])
+
+            # Handle both list and dict formats
+            # Convert dict format to list if needed
+            if isinstance(python_agents, dict):
+                python_agents = [v for k, v in sorted(python_agents.items(), key=lambda x: int(x[0]))]
+            if isinstance(rtl_agents, dict):
+                rtl_agents = [v for k, v in sorted(rtl_agents.items(), key=lambda x: int(x[0]))]
 
             # Compare each agent
-            for agent_id in range(min(len(python_agents), len(rtl_agents), total_agents)):
-                py_agent = python_agents.get(str(agent_id), {})
-                rtl_agent = rtl_agents.get(str(agent_id), {})
+            num_agents_compare = min(len(python_agents), len(rtl_agents), total_agents)
+            for agent_id in range(num_agents_compare):
+                py_agent = python_agents[agent_id] if agent_id < len(python_agents) else {}
+                rtl_agent = rtl_agents[agent_id] if agent_id < len(rtl_agents) else {}
 
-                if "x" in py_agent and "y" in py_agent and "x" in rtl_agent and "y" in rtl_agent:
-                    py_x, py_y = py_agent["x"], py_agent["y"]
-                    rtl_x, rtl_y = rtl_agent["x"], rtl_agent["y"]
+                # Handle different key names (x/y or x_px/y_px)
+                py_x = py_agent.get("x_px") or py_agent.get("x")
+                py_y = py_agent.get("y_px") or py_agent.get("y")
+                rtl_x = rtl_agent.get("x_px") or rtl_agent.get("x")
+                rtl_y = rtl_agent.get("y_px") or rtl_agent.get("y")
 
+                if py_x is not None and py_y is not None and rtl_x is not None and rtl_y is not None:
                     # Calculate distance error
                     error = ((py_x - rtl_x) ** 2 + (py_y - rtl_y) ** 2) ** 0.5
 
@@ -352,7 +447,7 @@ class RegressionTestRunner:
                     if error <= tolerance_px:
                         agents_matching += 1
 
-            mean_error = total_error / max(1, min(len(python_agents), len(rtl_agents), total_agents))
+            mean_error = total_error / max(1, num_agents_compare)
             passed = agents_matching >= (total_agents * 0.9)  # 90% match threshold
 
             comparison = {
@@ -368,7 +463,7 @@ class RegressionTestRunner:
 
             self.log(f"  Max error: {comparison['max_error_px']:.3f} px")
             self.log(f"  Mean error: {comparison['mean_error_px']:.3f} px")
-            self.log(f"  Agents matching: {comparison['agents_matching']}/{comparison['total_agents']} (>{tolerance_px}px)")
+            self.log(f"  Agents matching: {comparison['agents_matching']}/{comparison['total_agents']} (<{tolerance_px}px)")
             self.log(f"  Status: {'✓ PASSED' if passed else '✗ FAILED'}")
 
             return comparison
@@ -385,20 +480,250 @@ class RegressionTestRunner:
                 "error": str(e),
             }
 
-    def _generate_trajectory_html(self, test: RegressionTest, output_path: Path):
-        """Generate interactive trajectory HTML viewer"""
-        self.log(f"  Creating trajectory_viewer.html")
-        # Integration point for existing trajectory viewer
+    def _generate_trajectory_html(self, test: RegressionTest, output_path: Path,
+                                  width: int, height: int):
+        """Generate interactive trajectory HTML viewer using existing script"""
+        try:
+            # Check if trajectory comparison CSV exists (from agent dumps)
+            # We need to generate it from agent dumps first
+            self._create_trajectory_csv(test, output_path)
 
-    def _generate_trail_map(self, test: RegressionTest, output_path: Path):
-        """Generate trail map visualization"""
-        self.log(f"  Creating trail_map.png")
-        # Integration point for trail map visualization
+            csv_file = output_path / "trajectory_comparison.csv"
+            if not csv_file.exists():
+                self.log(f"  WARNING: No trajectory CSV found, skipping HTML generation")
+                return
 
-    def _generate_comparison_images(self, test: RegressionTest, output_path: Path):
-        """Generate side-by-side comparison images"""
-        self.log(f"  Creating comparison_*.png")
-        # Integration point for comparison images
+            html_output = output_path / "trajectory_viewer.html"
+
+            # Import and use the existing trajectory viewer
+            sys.path.insert(0, str(self.base_dir))
+            import interactive_trajectory_viewer
+
+            interactive_trajectory_viewer.generate_html(
+                str(csv_file),
+                width=width,
+                height=height,
+                output_file=str(html_output)
+            )
+
+            self.log(f"  ✓ Created {html_output}")
+
+        except Exception as e:
+            self.log(f"  WARNING: Failed to generate trajectory HTML: {e}")
+
+    def _create_trajectory_csv(self, test: RegressionTest, output_path: Path):
+        """Create trajectory comparison CSV from agent dumps"""
+        try:
+            python_dumps = sorted((output_path / "python_agent_dumps").glob("agent_state_step_*.json"))
+            rtl_dumps = sorted((output_path / "rtl_agent_dumps").glob("agent_state_step_*.json"))
+
+            if not python_dumps or not rtl_dumps:
+                return
+
+            csv_file = output_path / "trajectory_comparison.csv"
+
+            with open(csv_file, 'w', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    'step', 'agent_id',
+                    'python_x', 'python_y', 'python_angle',
+                    'rtl_x', 'rtl_y', 'rtl_angle',
+                    'x_diff', 'y_diff', 'distance', 'angle_diff'
+                ])
+
+                # Process each step
+                for py_dump, rtl_dump in zip(python_dumps, rtl_dumps):
+                    with open(py_dump) as f:
+                        py_data = json.load(f)
+                    with open(rtl_dump) as f:
+                        rtl_data = json.load(f)
+
+                    step = py_data.get('step', 0)
+                    py_agents = py_data.get('agents', [])
+                    rtl_agents = rtl_data.get('agents', [])
+
+                    # Convert dict to list if needed
+                    if isinstance(py_agents, dict):
+                        py_agents = [v for k, v in sorted(py_agents.items(), key=lambda x: int(x[0]))]
+                    if isinstance(rtl_agents, dict):
+                        rtl_agents = [v for k, v in sorted(rtl_agents.items(), key=lambda x: int(x[0]))]
+
+                    for agent_id in range(min(len(py_agents), len(rtl_agents))):
+                        py = py_agents[agent_id]
+                        rtl = rtl_agents[agent_id]
+
+                        py_x = py.get('x_px', py.get('x', 0))
+                        py_y = py.get('y_px', py.get('y', 0))
+                        py_angle = py.get('angle_deg', 0)
+
+                        rtl_x = rtl.get('x_px', rtl.get('x', 0))
+                        rtl_y = rtl.get('y_px', rtl.get('y', 0))
+                        rtl_angle = rtl.get('angle_deg', 0)
+
+                        x_diff = abs(py_x - rtl_x)
+                        y_diff = abs(py_y - rtl_y)
+                        distance = (x_diff**2 + y_diff**2)**0.5
+                        angle_diff = abs(py_angle - rtl_angle)
+
+                        writer.writerow([
+                            step, agent_id,
+                            py_x, py_y, py_angle,
+                            rtl_x, rtl_y, rtl_angle,
+                            x_diff, y_diff, distance, angle_diff
+                        ])
+
+            self.log(f"  ✓ Created trajectory CSV: {csv_file}")
+
+        except Exception as e:
+            self.log(f"  WARNING: Failed to create trajectory CSV: {e}")
+
+    def _generate_trail_map(self, test: RegressionTest, output_path: Path,
+                           width: int, height: int):
+        """Generate trail map visualization from RTL trail dumps"""
+        try:
+            trail_dumps = sorted((output_path / "rtl_trail_dumps").glob("trail_step_*.bin"))
+
+            if not trail_dumps:
+                self.log(f"  WARNING: No trail dumps found")
+                return
+
+            # Visualize the final trail map
+            final_trail = trail_dumps[-1]
+            trail_map = self._load_trail_dump(final_trail, width, height)
+
+            if trail_map is None:
+                self.log(f"  WARNING: Failed to load trail dump")
+                return
+
+            # Create heat-mapped image
+            img = self._trail_to_image(trail_map)
+
+            # Save
+            output_file = output_path / "trail_map.png"
+            img.save(output_file)
+
+            self.log(f"  ✓ Created {output_file}")
+
+        except Exception as e:
+            self.log(f"  WARNING: Failed to generate trail map: {e}")
+
+    def _load_trail_dump(self, filename: Path, width: int, height: int):
+        """Load RTL trail dump from binary file (32-bit values)"""
+        try:
+            with open(filename, 'rb') as f:
+                raw_data = f.read()
+
+            # Trail dumps are stored as 32-bit unsigned integers
+            expected_size = width * height * 4  # 4 bytes per pixel
+
+            if len(raw_data) == expected_size:
+                # Unpack as 32-bit unsigned integers
+                num_pixels = len(raw_data) // 4
+                values = struct.unpack(f'<{num_pixels}I', raw_data)
+                trail_map = np.array(values, dtype=np.uint32).reshape(height, width)
+                return trail_map
+            else:
+                self.log(f"  WARNING: Trail dump size mismatch: expected {expected_size}, got {len(raw_data)}")
+                return None
+
+        except Exception as e:
+            self.log(f"  ERROR loading trail dump: {e}")
+            return None
+
+    def _trail_to_image(self, trail_map):
+        """Convert trail map to heat-mapped RGB image"""
+        if trail_map.max() > 0:
+            normalized = (trail_map / trail_map.max() * 255).astype(np.uint8)
+        else:
+            normalized = trail_map.astype(np.uint8)
+
+        img_array = np.zeros((trail_map.shape[0], trail_map.shape[1], 3), dtype=np.uint8)
+
+        # Heat map: black -> blue -> cyan -> green -> yellow -> red
+        for i in range(256):
+            mask = normalized == i
+            if i < 64:
+                # Black to blue
+                img_array[mask] = [0, 0, min(255, int(i * 4))]
+            elif i < 128:
+                # Blue to cyan
+                img_array[mask] = [0, min(255, int((i - 64) * 4)), 255]
+            elif i < 192:
+                # Cyan to green
+                img_array[mask] = [0, 255, max(0, int(255 - (i - 128) * 4))]
+            else:
+                # Green to red
+                img_array[mask] = [min(255, int((i - 192) * 6.4)), max(0, int(255 - (i - 192) * 4)), 0]
+
+        return Image.fromarray(img_array, 'RGB')
+
+    def _generate_comparison_images(self, test: RegressionTest, output_path: Path,
+                                   width: int, height: int):
+        """Generate side-by-side comparison images from trail dumps"""
+        try:
+            # Find shared comparison directory created by run_extended_comparison.sh
+            comparison_pattern = f"rtl_comparison_{width}x{height}_{test.num_agents}agents_{test.num_steps}steps"
+            comparison_dirs = list(self.base_dir.glob(comparison_pattern))
+
+            if comparison_dirs:
+                # Copy comparison images from shared directory
+                comparison_src = comparison_dirs[0]
+                comparison_dst = output_path / "comparison_images"
+
+                for img_file in comparison_src.glob("comparison_*.png"):
+                    shutil.copy2(img_file, comparison_dst)
+
+                # Also copy stats if available
+                stats_file = comparison_src / "comparison_stats.json"
+                if stats_file.exists():
+                    shutil.copy2(stats_file, comparison_dst)
+
+                self.log(f"  ✓ Copied comparison images from {comparison_src}")
+            else:
+                # Generate comparison images from test-specific dumps
+                self._generate_comparison_from_dumps(test, output_path, width, height)
+
+        except Exception as e:
+            self.log(f"  WARNING: Failed to generate comparison images: {e}")
+
+    def _generate_comparison_from_dumps(self, test: RegressionTest, output_path: Path,
+                                       width: int, height: int):
+        """Generate comparison images from Python and RTL trail dumps"""
+        try:
+            # This would require Python trail dumps which we don't have yet
+            # For now, just generate RTL-only images
+            trail_dumps = sorted((output_path / "rtl_trail_dumps").glob("trail_step_*.bin"))
+
+            if not trail_dumps:
+                return
+
+            comparison_dst = output_path / "comparison_images"
+
+            for i, trail_file in enumerate(trail_dumps):
+                trail_map = self._load_trail_dump(trail_file, width, height)
+                if trail_map is not None:
+                    img = self._trail_to_image(trail_map)
+
+                    # Add labels
+                    canvas = Image.new('RGB', (img.width + 20, img.height + 80), color='black')
+                    canvas.paste(img, (10, 60))
+
+                    draw = ImageDraw.Draw(canvas)
+                    try:
+                        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
+                    except:
+                        font = ImageFont.load_default()
+
+                    step = int(trail_file.stem.split('_')[-1])
+                    draw.text((10, 10), f"RTL Trail Map - Step {step}", fill='cyan', font=font)
+
+                    output_file = comparison_dst / f"comparison_{step:05d}.png"
+                    canvas.save(output_file)
+
+            self.log(f"  ✓ Generated {len(trail_dumps)} comparison images")
+
+        except Exception as e:
+            self.log(f"  WARNING: Failed to generate comparison images: {e}")
 
     def _generate_statistics(self, test: RegressionTest, output_path: Path,
                            python_result: Optional[Dict], rtl_result: Optional[Dict],
@@ -417,7 +742,7 @@ class RegressionTestRunner:
         with open(stats_file, 'w') as f:
             json.dump(stats, f, indent=2)
 
-        self.log(f"  Statistics saved to {stats_file}")
+        self.log(f"  ✓ Statistics saved to {stats_file}")
 
     def run_all_tests(self, tests: List[RegressionTest]) -> List[TestResult]:
         """Run all regression tests"""

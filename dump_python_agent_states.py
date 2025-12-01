@@ -6,6 +6,7 @@ Dump Python simulator agent state at each step for trajectory analysis.
 import json
 import os
 import sys
+import argparse
 from pathlib import Path
 from dataclasses import dataclass
 from slime_simulator import SlimeSimulator, SimulationConfig
@@ -17,7 +18,7 @@ class Config:
     num_agents: int = 100
     steps: int = 100
     seed: int = 0xDEADBEEF
-    output_dir: str = 'python_agent_dumps'
+    output_dir: str = os.environ.get('PYTHON_AGENT_DUMPS_DIR', 'python_agent_dumps')
 
 def dump_agent_state(sim: SlimeSimulator, step: int, output_dir: str):
     """Dump agent state to JSON file."""
@@ -65,7 +66,24 @@ def dump_agent_state(sim: SlimeSimulator, step: int, output_dir: str):
     return filename
 
 def main():
-    cfg = Config()
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description="Dump Python simulator agent states at each step")
+    parser.add_argument("--width", type=int, default=320, help="Simulation width (default: 320)")
+    parser.add_argument("--height", type=int, default=240, help="Simulation height (default: 240)")
+    parser.add_argument("--agents", type=int, default=100, help="Number of agents (default: 100)")
+    parser.add_argument("--steps", type=int, default=100, help="Number of simulation steps (default: 100)")
+    parser.add_argument("--seed", type=lambda x: int(x, 0), default=0xDEADBEEF, help="Random seed (default: 0xDEADBEEF)")
+
+    args = parser.parse_args()
+
+    cfg = Config(
+        width=args.width,
+        height=args.height,
+        num_agents=args.agents,
+        steps=args.steps,
+        seed=args.seed,
+        output_dir=os.environ.get('PYTHON_AGENT_DUMPS_DIR', 'python_agent_dumps')
+    )
 
     print(f"Creating Python simulator...")
     print(f"  Resolution: {cfg.width}×{cfg.height}")

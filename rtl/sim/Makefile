@@ -23,7 +23,7 @@ TOPLEVEL ?= lfsr
 include $(shell cocotb-config --makefiles)/Makefile.sim
 
 # Test targets
-.PHONY: test_lfsr test_fixed_point test_trig test_vga test_rtl_vs_python test_trail_map test_all test_comparison clean_all
+.PHONY: test_lfsr test_fixed_point test_trig test_vga test_rtl_vs_python test_trail_map test_all test_comparison test_fixed_point_comprehensive test_movement_calculation clean_all
 
 test_lfsr:
 	$(MAKE) sim VERILOG_SOURCES="$(SRC_DIR)/lfsr.sv" MODULE=test_lfsr TOPLEVEL=lfsr
@@ -36,6 +36,15 @@ test_trig:
 
 test_vga:
 	$(MAKE) sim VERILOG_SOURCES="$(SRC_DIR)/vga_controller.sv" MODULE=test_vga TOPLEVEL=vga_controller
+
+test_fixed_point_comprehensive:
+	$(MAKE) sim VERILOG_SOURCES="$(SRC_DIR)/fixed_point_mult.sv" MODULE=test_fixed_point_comprehensive TOPLEVEL=fixed_point_mult
+
+test_movement_calculation:
+	$(MAKE) sim \
+		VERILOG_SOURCES="$(SRC_DIR)/fixed_point_mult.sv $(SRC_DIR)/trig_lut.sv $(SRC_DIR)/agent_processor.sv $(SRC_DIR)/lfsr.sv" \
+		MODULE=test_movement_calculation \
+		TOPLEVEL=agent_processor
 
 test_trail_map:
 	$(MAKE) sim \
