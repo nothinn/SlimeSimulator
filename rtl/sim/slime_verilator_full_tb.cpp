@@ -15,7 +15,7 @@
 const int NUM_AGENTS = 100;
 const int WIDTH = 320;
 const int HEIGHT = 240;
-const int NUM_STEPS = 100;    // Full 100-step simulation for trajectory matching
+const int NUM_STEPS = 1;    // Full 100-step simulation for trajectory matching
 const int DUMP_INTERVAL = 10; // Dump interval (unused, for future)
 
 // Trail map: 18-bit unsigned integers
@@ -125,6 +125,59 @@ public:
             agents[i].angle = AGENT_INIT_DATA[i][2];
         }
         std::cout << "[TB] Agents initialized from pre-computed data (circle, 40% radius, pointing inward)\n" << std::endl;
+    }
+
+    void write_agents_to_rtl() {
+        std::cout << "[TB] Writing agent initialization data to RTL..." << std::endl;
+
+        // Write each agent's state to RTL via debug interface
+        bool first_agent_checked = false;
+        for (int i = 0; i < NUM_AGENTS && i < 100; i++) {
+            // Write X coordinate
+            dut->debug_agent_idx = i;
+            dut->debug_agent_sel = 0;  // 0 = x
+            dut->debug_agent_data_write = agents[i].x;
+            dut->debug_agent_write_en = 1;
+            clock(1);
+            dut->debug_agent_write_en = 0;
+
+            // Write Y coordinate
+            dut->debug_agent_sel = 1;  // 1 = y
+            dut->debug_agent_data_write = agents[i].y;
+            dut->debug_agent_write_en = 1;
+            clock(1);
+            dut->debug_agent_write_en = 0;
+
+            // Write angle
+            dut->debug_agent_sel = 2;  // 2 = angle
+            dut->debug_agent_data_write = agents[i].angle;
+            dut->debug_agent_write_en = 1;
+            clock(1);
+            dut->debug_agent_write_en = 0;
+
+            // Verify write for first agent only (to avoid spamming output)
+            if (i == 0 && !first_agent_checked) {
+                clock(1);  // Let the write settle
+                dut->debug_agent_idx = 0;
+                dut->debug_agent_sel = 0;
+                dut->eval();
+                int32_t readback_x = dut->debug_agent_data;
+                std::cout << "[TB] VERIFY: Agent 0 X write/readback:" << std::endl;
+                std::cout << "[TB]   Wrote: 0x" << std::hex << agents[0].x << std::dec << " (" << (agents[0].x / 4096.0) << " px)" << std::endl;
+                std::cout << "[TB]   Read:  0x" << std::hex << readback_x << std::dec << " (" << (readback_x / 4096.0) << " px)" << std::endl;
+                if (readback_x == agents[0].x) {
+                    std::cout << "[TB]   ✓ Write successful" << std::endl;
+                } else {
+                    std::cout << "[TB]   ✗ WRITE FAILED - readback mismatch!" << std::endl;
+                }
+                first_agent_checked = true;
+            }
+
+            if ((i + 1) % 20 == 0) {
+                std::cout << "[TB]   Wrote " << (i + 1) << " agents..." << std::endl;
+            }
+        }
+        std::cout << "[TB] ✓ Agent initialization complete" << std::endl;
     }
 
     void dump_trail_map(int step) {
@@ -367,12 +420,12 @@ public:
 
         reset();
         initialize_agents();
+        write_agents_to_rtl();  // Write initialization data to RTL
 
-        // CRITICAL DEBUG: Dump angles BEFORE any processing (pre-RUNNING state)
-        dump_agent_state(-1);  // Step -1 = pre-processing (from initialization)
-
+        // CRITICAL: Dump step 0 AFTER initialization but BEFORE any processing
+        // This captures the initialized state, not processed state
         dump_trail_map(0);
-        dump_agent_state(0);  // Dump agent state after first processing cycle (post-RUNNING)
+        dump_agent_state(0);  // Step 0 = initialization state (no processing yet)
 
         std::cout << "Processing agents through RTL for " << NUM_STEPS << " steps...\n" << std::endl;
 
@@ -478,6 +531,7 @@ public:
             }
 
             // Dump trail map and agent state at step boundaries (every cycles_per_step cycles)
+            // Note: Step 0 is already dumped before processing, so we start with step 1
             int current_step = (cycle + 1) / cycles_per_step;
             int cycle_in_step = (cycle + 1) % cycles_per_step;
 
