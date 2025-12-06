@@ -13,6 +13,7 @@
 #   --resolution WIDTHxHEIGHT   Resolution (default: 800x600)
 #   --agents NUM                Number of agents (default: 100000)
 #   --steps NUM                 Number of simulation steps (default: 10000)
+#   --force-rebuild             Always force clean rebuild (default: true)
 #   --no-build                  Skip Verilator compilation
 #   --no-rtl                    Skip RTL simulation
 #   --help                      Show this help message
@@ -198,7 +199,9 @@ if [[ "$DO_BUILD" == true ]]; then
     cd "$RTL_SIM_DIR"
 
     print_section "Cleaning previous builds..."
-    rm -rf obj_dir obj_dir_slime_top obj_dir_full 2>/dev/null || true
+    # Always do a complete clean build to ensure latest source code is compiled
+    rm -rf obj_dir obj_dir_slime_top obj_dir_full *.o *.a 2>/dev/null || true
+    find . -name "*.vcd" -delete 2>/dev/null || true
     print_success "Cleaned"
 
     print_section "Updating testbench with configuration..."
