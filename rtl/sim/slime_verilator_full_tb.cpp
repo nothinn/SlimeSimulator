@@ -60,8 +60,9 @@ public:
     std::vector<Trail18> trail_map;  // Use custom 18-bit type
     std::vector<Agent> agents;
     uint64_t cycle_count;
+    int step_count;  // Track steps from step_complete_pulse signal
 
-    FullAgentRTLSim() : cycle_count(0) {
+    FullAgentRTLSim() : cycle_count(0), step_count(0) {
         dut = new Vslime_top;
         tfp = nullptr;
         trail_map.resize(WIDTH * HEIGHT, 0);
@@ -530,17 +531,18 @@ public:
                          << " (progress: " << (cycle * 100 / total_cycles) << "%)" << std::endl;
             }
 
-            // Dump trail map and agent state at step boundaries (every cycles_per_step cycles)
-            // Note: Step 0 is already dumped before processing, so we start with step 1
-            int current_step = (cycle + 1) / cycles_per_step;
-            int cycle_in_step = (cycle + 1) % cycles_per_step;
+            // Use step_complete_pulse signal for accurate dump synchronization
+            // This ensures dumps happen at true step boundaries, not estimated cycles
+            bool step_complete_this_cycle = dut->step_complete_pulse;
 
-            if (current_step > 0 && current_step <= NUM_STEPS &&
-                cycle_in_step == 0 && cycle < total_cycles - 10) {
-                std::cout << "\n[TB] Dumping at step " << current_step << "..." << std::endl;
-                dump_trail_map(current_step);
-                dump_agent_state(current_step);  // Dump agent state at each step
-                std::cout << "[TB] Progress: " << std::setw(3) << (current_step * 100 / NUM_STEPS) << "%\n" << std::endl;
+            if (step_complete_this_cycle) {
+                step_count++;
+                if (step_count <= NUM_STEPS) {
+                    std::cout << "\n[TB] Step " << step_count << " complete (cycle " << cycle << "), dumping state..." << std::endl;
+                    dump_trail_map(step_count);
+                    dump_agent_state(step_count);
+                    std::cout << "[TB] Progress: " << std::setw(3) << (step_count * 100 / NUM_STEPS) << "%\n" << std::endl;
+                }
             }
         }
 

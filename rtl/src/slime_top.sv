@@ -57,7 +57,10 @@ module slime_top #(
 
     // Agent initialization write interface
     input  logic debug_agent_write_en,       // Write enable
-    input  logic [24:0] debug_agent_data_write // Data to write
+    input  logic [24:0] debug_agent_data_write, // Data to write
+
+    // Step completion signal (for testbench synchronization)
+    output logic step_complete_pulse         // Pulses when all agents complete a step
 );
 
     // =========================================================================
@@ -455,7 +458,7 @@ module slime_top #(
         .trail_we_b(orch_trail_we),
         .lfsr_en_request(coordinator_lfsr_en),
         .done(),
-        .step_complete_pulse(),  // Not used in main RTL, only in step_controller
+        .step_complete_pulse(step_complete_pulse),  // Output for testbench synchronization
         // Agent debug interface
         .debug_agent_idx(debug_agent_idx),
         .debug_agent_sel(debug_agent_sel),

@@ -72,14 +72,28 @@ foreach f $TRIG_FILES {
 # Set testbench as top
 set_property top slime_xsim_tb [get_filesets sim_1]
 
-# PRE-COPY trig files to work directory BEFORE compilation
+# PRE-COPY trig files to multiple locations BEFORE compilation
 # This is critical because $readmemh happens at elaboration time
-puts "Pre-copying trig files..."
+# xelab will look in:
+# 1. Current working directory (where Vivado runs from)
+# 2. Same directory as source files
+# 3. xsim_work subdirectories
+puts "Pre-copying trig files to all search locations..."
 foreach f $TRIG_FILES {
     set abs_f [file normalize $f]
+    set fname [file tail $f]
+
+    # Copy to current directory (Vivado execution dir)
     catch {file copy -force $abs_f ./}
+    puts "  Copied $fname to ./"
+
+    # Copy to xsim_work (will be created by create_project)
     catch {file copy -force $abs_f $SIM_WORKDIR/}
-    puts "Pre-copied [file tail $abs_f]"
+    puts "  Copied $fname to $SIM_WORKDIR/"
+
+    # Copy to source directory (xelab may look here)
+    catch {file copy -force $abs_f [file dirname [lindex $RTL_FILES 0]]/}
+    puts "  Copied $fname to RTL source directory"
 }
 
 # Compile
@@ -114,7 +128,25 @@ foreach f $TRIG_FILES {
     puts "Post-copied [file tail $abs_f]"
 }
 
-puts "Running simulation..."
+# Create a small TCL script to set up environment and run with absolute paths
+set RUN_SCRIPT "$SIM_WORKDIR/$PROJ_NAME.sim/sim_1/behav/xsim/run_with_paths.tcl"
+catch {file mkdir [file dirname $RUN_SCRIPT]}
+
+set fp [open $RUN_SCRIPT w]
+puts $fp "# Auto-generated simulation script with absolute paths"
+
+# Get absolute paths for hex files
+foreach f $TRIG_FILES {
+    set abs_f [file normalize $f]
+    puts $fp "# Hex file: [file tail $abs_f] -> $abs_f"
+}
+
+# Change to xsim directory and run
+puts $fp "cd [file dirname $RUN_SCRIPT]"
+puts $fp "run all"
+close $fp
+
+puts "Running simulation with trig files in xsim runtime directory..."
 run all
 
 # Don't try to save VCD in batch mode - xsim output goes to log
