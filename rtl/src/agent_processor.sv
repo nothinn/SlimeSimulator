@@ -7,7 +7,7 @@
 // 2. Compute sensor positions (trig lookup)
 // 3. Sample trail map at sensor positions
 // 4. Sensory decision (compare F, FL, FR)
-// 5. Update angle
+// 5. Wait for new angle trig lookup (latency compensation)
 // 6. Compute new position (trig lookup)
 // 7. Write back agent and deposit trail
 
@@ -67,7 +67,7 @@ module agent_processor #(
     localparam signed [FP_TOTAL-1:0] WIDTH_FP = FP_TOTAL'(WIDTH * FP_SCALE);
     localparam signed [FP_TOTAL-1:0] HEIGHT_FP = FP_TOTAL'(HEIGHT * FP_SCALE);
 
-    // State machine (19 states needs 5 bits)
+    // State machine (20 states needs 5 bits)
     typedef enum logic [4:0] {
         IDLE,
         CALC_SENSOR_F_X,      // Calculate forward sensor X component
@@ -83,6 +83,7 @@ module agent_processor #(
         READ_TRAIL_R,
         WAIT_TRAIL_R,
         SENSORY_DECISION,
+        WAIT_NEW_ANGLE_TRIG,  // Wait for sin/cos(new_angle) to be valid
         CALC_MOVE_X,          // Calculate dx = cos * speed
         CALC_MOVE_Y,          // Calculate dy = sin * speed
         UPDATE_POS,           // Apply dx, dy and wrap
@@ -215,7 +216,8 @@ module agent_processor #(
                 if (trail_read_valid) next_state = SENSORY_DECISION;
 
             // Decision and movement
-            SENSORY_DECISION: next_state = CALC_MOVE_X;
+            SENSORY_DECISION: next_state = WAIT_NEW_ANGLE_TRIG;
+            WAIT_NEW_ANGLE_TRIG: next_state = CALC_MOVE_X;
             CALC_MOVE_X:      next_state = CALC_MOVE_Y;
             CALC_MOVE_Y:      next_state = UPDATE_POS;
             UPDATE_POS:       next_state = WRITE_TRAIL;
