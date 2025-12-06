@@ -61,8 +61,9 @@ public:
     std::vector<Agent> agents;
     uint64_t cycle_count;
     int step_count;  // Track steps from step_complete_pulse signal
+    bool prev_step_complete_pulse;  // For detecting pulse edges
 
-    FullAgentRTLSim() : cycle_count(0), step_count(0) {
+    FullAgentRTLSim() : cycle_count(0), step_count(0), prev_step_complete_pulse(false) {
         dut = new Vslime_top;
         tfp = nullptr;
         trail_map.resize(WIDTH * HEIGHT, 0);
@@ -531,11 +532,12 @@ public:
                          << " (progress: " << (cycle * 100 / total_cycles) << "%)" << std::endl;
             }
 
-            // Use step_complete_pulse signal for accurate dump synchronization
-            // This ensures dumps happen at true step boundaries, not estimated cycles
+            // Use step_complete_pulse signal with edge detection for accurate dump synchronization
+            // Detects rising edges of the 1-cycle-wide pulse signal
             bool step_complete_this_cycle = dut->step_complete_pulse;
+            bool step_pulse_detected = step_complete_this_cycle && !prev_step_complete_pulse;
 
-            if (step_complete_this_cycle) {
+            if (step_pulse_detected) {
                 step_count++;
                 if (step_count <= NUM_STEPS) {
                     std::cout << "\n[TB] Step " << step_count << " complete (cycle " << cycle << "), dumping state..." << std::endl;
@@ -544,6 +546,9 @@ public:
                     std::cout << "[TB] Progress: " << std::setw(3) << (step_count * 100 / NUM_STEPS) << "%\n" << std::endl;
                 }
             }
+
+            // Update pulse detector for next cycle
+            prev_step_complete_pulse = step_complete_this_cycle;
         }
 
         std::cout << "\n[TB] Simulation complete. Total agents processed: " << agents_processed << std::endl;
