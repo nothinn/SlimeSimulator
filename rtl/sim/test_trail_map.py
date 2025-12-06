@@ -12,9 +12,9 @@ import numpy as np
 import os
 import sys
 
-# Import Python reference
+# Import Python reference (matches RTL module interfaces)
 sys.path.insert(0, os.path.dirname(__file__))
-from python_reference import SlimeSimulatorReference, FixedPoint
+from slime_simulator import FixedPoint
 
 @cocotb.test()
 async def test_single_agent_movement(dut):

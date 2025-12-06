@@ -18,9 +18,7 @@ import sys
 from pathlib import Path
 from dataclasses import dataclass, asdict
 from typing import List, Dict, Any
-from rtl.sim.python_reference import (
-    LFSR, FixedPoint, TrigLUT, SlimeAgent, SlimeSimulatorReference
-)
+from slime_simulator import LFSR, FixedPoint, TrigLUT, SlimeAgent, SlimeSimulatorReference
 
 
 @dataclass

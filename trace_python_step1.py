@@ -2,12 +2,9 @@
 """Trace Python step 0->1 to understand expected behavior."""
 
 import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'rtl', 'sim'))
+from pathlib import Path
 
-from python_reference import (
-    LFSR, FixedPoint, TrigLUT, SlimeSimulatorReference, SlimeAgent
-)
+from slime_simulator import LFSR, FixedPoint, TrigLUT, SlimeSimulatorReference, SlimeAgent
 import math
 import json
 

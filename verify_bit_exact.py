@@ -9,15 +9,12 @@ This script checks:
 4. Agent step-1 calculation with detailed tracing
 """
 
-import sys
-import os
 import json
 import struct
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'rtl', 'sim'))
+import sys
+from pathlib import Path
 
-from python_reference import (
-    LFSR, FixedPoint, TrigLUT, SlimeSimulatorReference, SlimeAgent
-)
+from slime_simulator import LFSR, FixedPoint, TrigLUT, SlimeSimulatorReference, SlimeAgent
 import math
 import numpy as np
 
@@ -44,7 +41,8 @@ def verify_trig_luts():
     print("=" * 80)
 
     # Load Python LUT
-    python_trig = TrigLUT(10, 12)
+    fp = FixedPoint(12, 12)
+    python_trig = TrigLUT(fp, table_bits=10)
 
     # Load RTL hex files
     sin_hex_file = 'rtl/src/sin_lut.hex'

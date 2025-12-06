@@ -27,14 +27,14 @@ from typing import Dict, List, Tuple, Any
 from dataclasses import dataclass, asdict
 
 # Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent / 'rtl' / 'sim'))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
-    from python_reference import LFSR, FixedPoint, TrigLUT, SlimeSimulatorReference
+    from slime_simulator import LFSR, FixedPoint, TrigLUT, SlimeSimulatorReference
     import numpy as np
 except ImportError as e:
     print(f"ERROR: Required modules not found: {e}")
-    print("Please ensure python_reference.py is in rtl/sim/ directory")
+    print("Please ensure slime_simulator.py is available")
     sys.exit(1)
 
 

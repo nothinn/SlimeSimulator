@@ -455,6 +455,7 @@ module slime_top #(
         .trail_we_b(orch_trail_we),
         .lfsr_en_request(coordinator_lfsr_en),
         .done(),
+        .step_complete_pulse(),  // Not used in main RTL, only in step_controller
         // Agent debug interface
         .debug_agent_idx(debug_agent_idx),
         .debug_agent_sel(debug_agent_sel),

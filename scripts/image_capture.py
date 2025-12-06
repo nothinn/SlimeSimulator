@@ -68,8 +68,7 @@ class ImageCapture:
     def check_python_reference_available(self):
         """Check if Python reference implementation is available"""
         try:
-            sys.path.insert(0, str(self.rtl_dir / 'sim'))
-            import python_reference
+            import slime_simulator
             self.log("Found Python reference implementation")
             return True
         except ImportError as e:
@@ -213,8 +212,7 @@ exit 0
             return np.random.randint(0, 256, (height, width), dtype=np.uint8)
 
         try:
-            sys.path.insert(0, str(self.rtl_dir / 'sim'))
-            from python_reference import SlimeSimulator
+            from slime_simulator import SlimeSimulator
 
             # Create simulator
             sim = SlimeSimulator(

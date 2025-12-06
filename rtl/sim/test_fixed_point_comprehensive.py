@@ -14,7 +14,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
-from python_reference import FixedPoint
+from slime_simulator import FixedPoint
 
 INT_BITS = 12
 FRAC_BITS = 12

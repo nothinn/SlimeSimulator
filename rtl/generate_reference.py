@@ -2,8 +2,9 @@
 """Generate reference trail data for different resolutions."""
 
 import sys
-sys.path.insert(0, 'rtl/sim')
-from python_reference import SlimeSimulatorReference
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from slime_simulator import SlimeSimulatorReference
 
 # Generate for 160x120 (matches RTL memory)
 print("Generating reference for 160x120...")

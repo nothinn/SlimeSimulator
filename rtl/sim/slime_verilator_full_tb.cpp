@@ -12,10 +12,10 @@
 #include "agent_init_data.h"  // Pre-computed agent initialization (FIX #6)
 
 // Full simulation with real agent processing
-const int NUM_AGENTS = 2;
+const int NUM_AGENTS = 100;
 const int WIDTH = 320;
 const int HEIGHT = 240;
-const int NUM_STEPS = 10;    // Full 100-step simulation for trajectory matching
+const int NUM_STEPS = 2000;    // Full 100-step simulation for trajectory matching
 const int DUMP_INTERVAL = 10; // Dump interval (unused, for future)
 
 // Trail map: 18-bit unsigned integers

@@ -21,7 +21,7 @@ from pathlib import Path
 
 # Add testbench directory to path for imports
 sys.path.insert(0, os.path.dirname(__file__))
-from python_reference import FixedPoint, TrigLUT
+from slime_simulator import FixedPoint, TrigLUT
 
 # Parameters matching agent_processor.sv
 INT_BITS = 12

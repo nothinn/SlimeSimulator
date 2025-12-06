@@ -29,7 +29,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, FallingEdge, Timer
 from cocotb.types import LogicArray
 
-from python_reference import FixedPoint, LFSR, TrigLUT, AngleNormalize
+from slime_simulator import FixedPoint, LFSR, TrigLUT, AngleNormalize
 
 # Configuration
 AGENT_X_INIT = FixedPoint(256.0)

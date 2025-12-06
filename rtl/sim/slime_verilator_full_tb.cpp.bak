@@ -12,10 +12,10 @@
 #include "agent_init_data.h"  // Pre-computed agent initialization (FIX #6)
 
 // Full simulation with real agent processing
-const int NUM_AGENTS = 2;
+const int NUM_AGENTS = 100;
 const int WIDTH = 320;
 const int HEIGHT = 240;
-const int NUM_STEPS = 10;    // Full 100-step simulation for trajectory matching
+const int NUM_STEPS = 5;    // Full 100-step simulation for trajectory matching
 const int DUMP_INTERVAL = 10; // Dump interval (unused, for future)
 
 // Trail map: 18-bit unsigned integers
@@ -463,6 +463,8 @@ public:
         bool prev_proc_busy = false;
         bool prev_proc_done = false;
         int agents_processed = 0;
+        int step_complete_count = 0;  // Count step completions
+        int prev_agent_idx = -1;
 
         // Let RTL run and process agents through the real processor
         for (int cycle = 0; cycle < total_cycles; cycle++) {
@@ -530,18 +532,23 @@ public:
                          << " (progress: " << (cycle * 100 / total_cycles) << "%)" << std::endl;
             }
 
-            // Dump trail map and agent state at step boundaries (every cycles_per_step cycles)
-            // Note: Step 0 is already dumped before processing, so we start with step 1
-            int current_step = (cycle + 1) / cycles_per_step;
-            int cycle_in_step = (cycle + 1) % cycles_per_step;
+            // Detect step completion by monitoring agent index wraparound
+            // When agent index resets from NUM_AGENTS-1 to 0, we've completed one step
+            int curr_agent_idx = (int)dut->rootp->slime_top__DOT__u_coordinator__DOT__current_agent_idx;
 
-            if (current_step > 0 && current_step <= NUM_STEPS &&
-                cycle_in_step == 0 && cycle < total_cycles - 10) {
-                std::cout << "\n[TB] Dumping at step " << current_step << "..." << std::endl;
-                dump_trail_map(current_step);
-                dump_agent_state(current_step);  // Dump agent state at each step
-                std::cout << "[TB] Progress: " << std::setw(3) << (current_step * 100 / NUM_STEPS) << "%\n" << std::endl;
+            // Detect wraparound: agent went from high (NUM_AGENTS-1 or near it) back to 0
+            if (prev_agent_idx >= (NUM_AGENTS - 5) && curr_agent_idx < 5 && prev_agent_idx >= 0) {
+                step_complete_count++;
+                if (step_complete_count <= NUM_STEPS) {
+                    std::cout << "\n[TB] Step complete detected at cycle " << cycle
+                              << " (step " << step_complete_count << ", agent wrapped from "
+                              << prev_agent_idx << " to " << curr_agent_idx << ")" << std::endl;
+                    dump_trail_map(step_complete_count);
+                    dump_agent_state(step_complete_count);
+                    std::cout << "[TB] Progress: " << std::setw(3) << (step_complete_count * 100 / NUM_STEPS) << "%\n" << std::endl;
+                }
             }
+            prev_agent_idx = curr_agent_idx;
         }
 
         std::cout << "\n[TB] Simulation complete. Total agents processed: " << agents_processed << std::endl;

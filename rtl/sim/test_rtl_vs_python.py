@@ -16,9 +16,9 @@ import numpy as np
 import os
 import sys
 
-# Add testbench directory to path for imports
-sys.path.insert(0, os.path.dirname(__file__))
-from python_reference import LFSR, FixedPoint, TrigLUT, SlimeSimulatorReference
+# Add project root to path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+from slime_simulator import LFSR, FixedPoint, TrigLUT, SlimeSimulatorReference
 
 
 @cocotb.test()

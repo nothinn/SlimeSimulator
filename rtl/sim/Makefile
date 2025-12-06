@@ -23,7 +23,7 @@ TOPLEVEL ?= lfsr
 include $(shell cocotb-config --makefiles)/Makefile.sim
 
 # Test targets
-.PHONY: test_lfsr test_fixed_point test_trig test_vga test_rtl_vs_python test_trail_map test_all test_comparison test_fixed_point_comprehensive test_movement_calculation clean_all
+.PHONY: test_lfsr test_fixed_point test_trig test_vga test_rtl_vs_python test_trail_map test_all test_comparison test_fixed_point_comprehensive test_movement_calculation test_modules_vs_python test_modules_comprehensive test_2x_movement_bug clean_all
 
 test_lfsr:
 	$(MAKE) sim VERILOG_SOURCES="$(SRC_DIR)/lfsr.sv" MODULE=test_lfsr TOPLEVEL=lfsr
@@ -51,6 +51,45 @@ test_trail_map:
 		VERILOG_SOURCES="$(SRC_DIR)/agent_sim_tb.sv $(SRC_DIR)/agent_processor.sv $(SRC_DIR)/lfsr.sv $(SRC_DIR)/trig_lut.sv $(SRC_DIR)/fixed_point_mult.sv" \
 		MODULE=test_trail_map \
 		TOPLEVEL=agent_sim_tb
+
+# New comprehensive comparison tests
+test_trig_lut_vs_python:
+	$(MAKE) sim \
+		VERILOG_SOURCES="$(SRC_DIR)/trig_lut.sv" \
+		MODULE=test_modules_vs_python \
+		TOPLEVEL=trig_lut \
+		TESTCASE=test_trig_lut_comprehensive,test_trig_lut_latency
+
+test_fixed_point_mult_vs_python:
+	$(MAKE) sim \
+		VERILOG_SOURCES="$(SRC_DIR)/fixed_point_mult.sv" \
+		MODULE=test_modules_vs_python \
+		TOPLEVEL=fixed_point_mult \
+		TESTCASE=test_fixed_point_mult_comprehensive,test_fixed_point_movement_calculation
+
+test_agent_processor_vs_python:
+	$(MAKE) sim \
+		VERILOG_SOURCES="$(SRC_DIR)/agent_processor.sv $(SRC_DIR)/fixed_point_mult.sv $(SRC_DIR)/trig_lut.sv $(SRC_DIR)/lfsr.sv" \
+		MODULE=test_modules_vs_python \
+		TOPLEVEL=agent_processor \
+		TESTCASE=test_agent_processor_initialization,test_agent_processor_trig_latency_compensation
+
+# Run all module comparison tests
+test_modules_comprehensive: clean
+	@echo "========================================="
+	@echo "Running comprehensive module vs Python tests"
+	@echo "========================================="
+	@echo "Test 1: Trig LUT comprehensive comparison"
+	$(MAKE) test_trig_lut_vs_python
+	$(MAKE) clean
+	@echo "Test 2: Fixed-point multiplier comprehensive comparison"
+	$(MAKE) test_fixed_point_mult_vs_python
+	$(MAKE) clean
+	@echo "Test 3: Agent processor vs Python"
+	$(MAKE) test_agent_processor_vs_python
+	@echo "========================================="
+	@echo "All module comparison tests completed!"
+	@echo "========================================="
 
 test_all: clean
 	$(MAKE) test_lfsr
@@ -83,19 +122,48 @@ test_rtl_vs_python_trig:
 		TOPLEVEL=trig_lut \
 		TESTCASE=test_trig_lut_full_table
 
-# Run all comparison tests
+# Run all comparison tests (both legacy and new comprehensive)
 test_comparison: clean
 	@echo "========================================="
 	@echo "Running RTL vs Python comparison tests"
 	@echo "========================================="
+	@echo ""
+	@echo "--- Legacy Comparison Tests ---"
 	$(MAKE) test_rtl_vs_python_lfsr
 	$(MAKE) clean
 	$(MAKE) test_rtl_vs_python_fp
 	$(MAKE) clean
 	$(MAKE) test_rtl_vs_python_trig
+	$(MAKE) clean
+	@echo ""
+	@echo "--- Comprehensive Module Tests ---"
+	$(MAKE) test_modules_comprehensive
+	@echo ""
 	@echo "========================================="
 	@echo "All comparison tests passed!"
 	@echo "========================================="
 
+# 2x Movement Bug Isolation Test
+test_2x_movement_bug:
+	@echo "========================================="
+	@echo "Testing 2x Movement Scaling Bug"
+	@echo "========================================="
+	$(MAKE) sim \
+		VERILOG_SOURCES="$(SRC_DIR)/agent_sim_tb.sv $(SRC_DIR)/agent_processor.sv $(SRC_DIR)/lfsr.sv $(SRC_DIR)/trig_lut.sv $(SRC_DIR)/fixed_point_mult.sv" \
+		MODULE=test_2x_movement_bug \
+		TOPLEVEL=agent_sim_tb \
+		TESTCASE=test_2x_movement_right_direction,test_2x_movement_diagonal,test_movement_components_isolation
+
+# Step-Based Control Test
+test_step_control:
+	@echo "========================================="
+	@echo "Testing Step-Based Control"
+	@echo "========================================="
+	$(MAKE) sim \
+		VERILOG_SOURCES="$(SRC_DIR)/step_test_tb.sv $(SRC_DIR)/step_controller.sv $(SRC_DIR)/agent_coordinator.sv $(SRC_DIR)/agent_processor.sv $(SRC_DIR)/lfsr.sv $(SRC_DIR)/trig_lut.sv $(SRC_DIR)/fixed_point_mult.sv" \
+		MODULE=step_test \
+		TOPLEVEL=step_test_tb \
+		TESTCASE=test_step_controller_basic,test_step_controller_movement
+
 clean_all: clean
-	rm -rf __pycache__ results.xml *.vcd sim_build
+	rm -rf __pycache__ results.xml *.vcd sim_build step_test_dumps step_test_dumps_movement

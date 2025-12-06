@@ -24,6 +24,18 @@ try:
 except ImportError:
     PYGAME_AVAILABLE = False
 
+# Public API - these classes are available for import
+__all__ = [
+    'LFSR',
+    'FixedPoint',
+    'TrigLUT',
+    'SlimeAgent',
+    'SlimeSimulatorReference',
+    'SlimeSimulator',
+    'SimulationConfig',
+    'generate_reference_trail',
+]
+
 
 class LFSR:
     """
@@ -130,10 +142,15 @@ class FixedPoint:
         """
         self.integer_bits = integer_bits
         self.fractional_bits = fractional_bits
+        # Aliases for backward compatibility with older code
+        self.int_bits = integer_bits
+        self.frac_bits = fractional_bits
         self.total_bits = integer_bits + fractional_bits + 1  # +1 for sign
         self.scale = 1 << fractional_bits
         self.max_val = (1 << (integer_bits + fractional_bits)) - 1
         self.min_val = -(1 << (integer_bits + fractional_bits))
+        # Bitmask for wrapping arithmetic (used in agent position calculations)
+        self.mask = (1 << (integer_bits + fractional_bits + 1)) - 1
 
     def to_fixed(self, value: float) -> int:
         """Convert float to fixed-point integer representation."""
@@ -206,7 +223,7 @@ class FixedPoint:
 class TrigLUT:
     """
     Lookup table for sine and cosine in fixed-point.
-    Uses a quarter-wave table with symmetry for full 2*pi range.
+    Direct index-based interface matching RTL trig_lut.sv.
 
     IMPORTANT: Returns unsigned 2's complement values matching RTL hex files.
     Negative values are stored as (1 << 25) + signed_value to match gen_trig_lut.py.
@@ -218,18 +235,15 @@ class TrigLUT:
 
         Args:
             fp: FixedPoint configuration
-            table_bits: Number of bits for angle indexing (table size = 2^table_bits)
+            table_bits: Number of bits for angle indexing (table size = 2^table_bits, e.g., 10 -> 1024 entries)
         """
         self.fp = fp
         self.table_bits = table_bits
         self.table_size = 1 << table_bits
         self.angle_mask = self.table_size - 1
 
-        # Full 2*pi represented as table_size steps
-        # Store quarter wave (0 to pi/2) and use symmetry
-        quarter_size = self.table_size // 4
-
-        # Build sine table for one full period
+        # Build sine/cosine tables for one full period (0 to 2*pi)
+        # Direct index interface: index 0 to table_size-1 represents angle 0 to 2*pi
         # CRITICAL: Generate unsigned 2's complement values matching RTL
         angles = np.linspace(0, 2 * np.pi, self.table_size, endpoint=False)
         sin_signed = fp.to_fixed_array(np.sin(angles))
@@ -240,31 +254,83 @@ class TrigLUT:
         self.sin_table = np.where(sin_signed < 0, (1 << 25) + sin_signed, sin_signed).astype(np.int64)
         self.cos_table = np.where(cos_signed < 0, (1 << 25) + cos_signed, cos_signed).astype(np.int64)
 
-        # Fixed-point representation of 2*pi for angle wrapping
-        self.two_pi_fixed = fp.to_fixed(2 * np.pi)
-        self.angle_scale = self.table_size / self.two_pi_fixed
+    def sin(self, angle_idx: int) -> int:
+        """
+        Get sine value by direct index.
 
-    def sin(self, angle_fixed: int) -> int:
-        """Get sine of fixed-point angle."""
-        # Convert angle to table index
-        # angle is in fixed-point radians, table covers 0 to 2*pi
-        idx = int((angle_fixed * self.angle_scale)) & self.angle_mask
-        return self.sin_table[idx]
+        Args:
+            angle_idx: Index into lookup table (0 to table_size-1)
 
-    def cos(self, angle_fixed: int) -> int:
-        """Get cosine of fixed-point angle."""
-        idx = int((angle_fixed * self.angle_scale)) & self.angle_mask
-        return self.cos_table[idx]
+        Returns:
+            Sine value as unsigned 25-bit fixed-point Q12.12
+        """
+        idx = angle_idx & self.angle_mask
+        return int(self.sin_table[idx])
 
-    def sin_array(self, angles_fixed: np.ndarray) -> np.ndarray:
-        """Get sine of fixed-point angle array."""
-        indices = ((angles_fixed * self.angle_scale).astype(np.int64)) & self.angle_mask
+    def cos(self, angle_idx: int) -> int:
+        """
+        Get cosine value by direct index.
+
+        Args:
+            angle_idx: Index into lookup table (0 to table_size-1)
+
+        Returns:
+            Cosine value as unsigned 25-bit fixed-point Q12.12
+        """
+        idx = angle_idx & self.angle_mask
+        return int(self.cos_table[idx])
+
+    def sin_array(self, angle_indices: np.ndarray) -> np.ndarray:
+        """Get sine array by direct indices."""
+        indices = angle_indices & self.angle_mask
         return self.sin_table[indices]
 
-    def cos_array(self, angles_fixed: np.ndarray) -> np.ndarray:
-        """Get cosine of fixed-point angle array."""
-        indices = ((angles_fixed * self.angle_scale).astype(np.int64)) & self.angle_mask
+    def cos_array(self, angle_indices: np.ndarray) -> np.ndarray:
+        """Get cosine array by direct indices."""
+        indices = angle_indices & self.angle_mask
         return self.cos_table[indices]
+
+    def angle_to_index(self, angle_fixed: int) -> int:
+        """
+        Convert fixed-point angle (radians) to table index.
+        Helper method for user code that works with angles instead of indices.
+
+        Args:
+            angle_fixed: Fixed-point angle in radians (0 to 2*pi)
+
+        Returns:
+            Table index (0 to table_size-1)
+        """
+        # Map 0-2π to 0-table_size
+        # Since angles are 2*pi_fixed, scale by table_size / (2*pi in fixed-point radians)
+        two_pi_fixed = self.fp.to_fixed(2 * np.pi)
+        idx = int((angle_fixed * self.table_size) / two_pi_fixed)
+        return idx & self.angle_mask
+
+    def sin_by_angle(self, angle_fixed: int) -> int:
+        """Get sine by fixed-point angle (radians). Helper for angle-based code."""
+        idx = self.angle_to_index(angle_fixed)
+        return self.sin(idx)
+
+    def cos_by_angle(self, angle_fixed: int) -> int:
+        """Get cosine by fixed-point angle (radians). Helper for angle-based code."""
+        idx = self.angle_to_index(angle_fixed)
+        return self.cos(idx)
+
+    def angles_to_indices(self, angles_fixed: np.ndarray) -> np.ndarray:
+        """
+        Convert array of fixed-point angles to table indices.
+        Helper for batch conversion of angle arrays.
+
+        Args:
+            angles_fixed: Array of fixed-point angles in radians
+
+        Returns:
+            Array of table indices (0 to table_size-1)
+        """
+        two_pi_fixed = self.fp.to_fixed(2 * np.pi)
+        indices = ((angles_fixed * self.table_size) / two_pi_fixed).astype(np.int64)
+        return indices & self.angle_mask
 
 
 @dataclass
@@ -393,8 +459,10 @@ class SlimeSimulator:
             )
 
             # x = cx + cos(angle) * radius
-            cos_vals = self.trig.cos_array(spawn_angles_fp)
-            sin_vals = self.trig.sin_array(spawn_angles_fp)
+            # Convert angles to indices for direct lookup
+            spawn_angle_indices = self.trig.angles_to_indices(spawn_angles_fp)
+            cos_vals = self.trig.cos_array(spawn_angle_indices)
+            sin_vals = self.trig.sin_array(spawn_angle_indices)
 
             self.x = cx_fp + self.fp.multiply_array(cos_vals, np.full(n, radius_fp, dtype=np.int64))
             self.y = cy_fp + self.fp.multiply_array(sin_vals, np.full(n, radius_fp, dtype=np.int64))
@@ -425,8 +493,10 @@ class SlimeSimulator:
             radius_fp = self.fp.to_fixed(min(self.width, self.height) * 0.3)
             spawn_angles_fp = self._lfsr_uniform_angle_fp(n)
 
-            cos_vals = self.trig.cos_array(spawn_angles_fp)
-            sin_vals = self.trig.sin_array(spawn_angles_fp)
+            # Convert angles to indices for direct lookup
+            spawn_angle_indices = self.trig.angles_to_indices(spawn_angles_fp)
+            cos_vals = self.trig.cos_array(spawn_angle_indices)
+            sin_vals = self.trig.sin_array(spawn_angle_indices)
 
             self.x = cx_fp + self.fp.multiply_array(cos_vals, np.full(n, radius_fp, dtype=np.int64))
             self.y = cy_fp + self.fp.multiply_array(sin_vals, np.full(n, radius_fp, dtype=np.int64))
@@ -447,8 +517,10 @@ class SlimeSimulator:
         sense_angles = self.angles + angle_offset_fp
 
         # Compute sensor position using trig LUT
-        cos_vals = self.trig.cos_array(sense_angles)
-        sin_vals = self.trig.sin_array(sense_angles)
+        # Convert angles to indices for direct lookup
+        sense_angle_indices = self.trig.angles_to_indices(sense_angles)
+        cos_vals = self.trig.cos_array(sense_angle_indices)
+        sin_vals = self.trig.sin_array(sense_angle_indices)
 
         sense_x = self.x + self.fp.multiply_array(cos_vals,
                     np.full(self.config.num_agents, self.sensor_distance_fp, dtype=np.int64))
@@ -508,8 +580,10 @@ class SlimeSimulator:
         Fixed-point vectorized implementation.
         """
         # Calculate velocity components using trig LUT
-        cos_vals = self.trig.cos_array(self.angles)
-        sin_vals = self.trig.sin_array(self.angles)
+        # Convert angles to indices for direct lookup
+        angle_indices = self.trig.angles_to_indices(self.angles)
+        cos_vals = self.trig.cos_array(angle_indices)
+        sin_vals = self.trig.sin_array(angle_indices)
 
         # Calculate new positions
         dx = self.fp.multiply_array(cos_vals,
@@ -702,6 +776,230 @@ class SlimeSimulator:
 
         pygame.quit()
         print(f"\nSimulation ended at step {step}")
+
+
+class SlimeAgent:
+    """Single slime agent matching RTL implementation."""
+
+    def __init__(self, x: int, y: int, angle: int, fp):
+        self.x = x  # Fixed-point position
+        self.y = y
+        self.angle = angle  # 10-bit angle index (0-1023)
+        self.fp = fp
+
+
+class SlimeSimulatorReference:
+    """
+    Reference slime simulator for RTL comparison.
+    Uses exact same algorithms as RTL implementation.
+    """
+
+    def __init__(self, width: int = 640, height: int = 480, num_agents: int = 1000,
+                 int_bits: int = 12, frac_bits: int = 12, lfsr_seed: int = 0xDEADBEEF):
+        self.width = width
+        self.height = height
+        self.num_agents = num_agents
+
+        # Fixed-point arithmetic
+        self.fp = FixedPoint(int_bits, frac_bits)
+
+        # LFSR for deterministic random
+        self.lfsr = LFSR(32, lfsr_seed)
+
+        # Trig lookup table (index-based interface matching RTL)
+        self.trig = TrigLUT(self.fp, table_bits=10)
+
+        # Trail map (8-bit intensity per pixel)
+        self.trail_map = np.zeros((height, width), dtype=np.uint8)
+
+        # Parameters (fixed-point)
+        self.move_speed = self.fp.to_fixed(1.0)
+        self.turn_speed = self.fp.to_fixed(0.3)
+        self.sensor_angle = self.fp.to_fixed(0.5)  # ~30 degrees
+        self.sensor_distance = self.fp.to_fixed(9.0)
+        self.deposit_amount = 5
+        self.decay_rate = self.fp.to_fixed(0.95)
+
+        # Agents
+        self.agents = []
+
+    def init_agents_center(self):
+        """Initialize agents at center, pointing outward."""
+        self.agents = []
+        center_x = self.fp.to_fixed(self.width / 2)
+        center_y = self.fp.to_fixed(self.height / 2)
+
+        for i in range(self.num_agents):
+            # Random angle (0-1023)
+            self.lfsr.step()
+            angle = self.lfsr.state & 0x3FF  # 10-bit angle
+
+            self.agents.append(SlimeAgent(center_x, center_y, angle, self.fp))
+
+    def init_agents_random(self):
+        """Initialize agents at random positions."""
+        self.agents = []
+
+        for i in range(self.num_agents):
+            # Random position
+            self.lfsr.step()
+            x = self.fp.to_fixed((self.lfsr.state & 0xFFFF) % self.width)
+
+            self.lfsr.step()
+            y = self.fp.to_fixed((self.lfsr.state & 0xFFFF) % self.height)
+
+            self.lfsr.step()
+            angle = self.lfsr.state & 0x3FF
+
+            self.agents.append(SlimeAgent(x, y, angle, self.fp))
+
+    def sense(self, agent: SlimeAgent, angle_offset: int) -> int:
+        """Sense trail at given angle offset from agent direction."""
+        # Calculate sensor position
+        sensor_angle = (agent.angle + angle_offset) & 0x3FF
+
+        sin_val = self.trig.sin(sensor_angle)
+        cos_val = self.trig.cos(sensor_angle)
+
+        # sensor_x = agent.x + cos(angle) * distance
+        dx = self.fp.multiply(cos_val, self.sensor_distance)
+        dy = self.fp.multiply(sin_val, self.sensor_distance)
+
+        sensor_x = (agent.x + dx) & self.fp.mask
+        sensor_y = (agent.y + dy) & self.fp.mask
+
+        # Convert to pixel coordinates
+        px = self.fp.from_fixed(sensor_x)
+        py = self.fp.from_fixed(sensor_y)
+
+        # Bounds check
+        px = int(px) % self.width
+        py = int(py) % self.height
+
+        return int(self.trail_map[py, px])
+
+    def update_agent(self, agent: SlimeAgent):
+        """Update single agent (sense, turn, move, deposit)."""
+        # Sense in three directions
+        sense_forward = self.sense(agent, 0)
+
+        # Convert sensor_angle from fixed to angle index offset
+        # sensor_angle is ~0.5 radians, table has 1024 entries for 2*pi
+        # 0.5 / (2*pi) * 1024 ≈ 81
+        angle_offset = 81
+
+        sense_left = self.sense(agent, angle_offset)
+        sense_right = self.sense(agent, -angle_offset & 0x3FF)
+
+        # Turn based on sensing
+        # turn_amount in angle indices: turn_speed * some_factor
+        turn_amount = 10  # ~6 degrees per step
+
+        if sense_forward > sense_left and sense_forward > sense_right:
+            # Continue straight
+            pass
+        elif sense_forward < sense_left and sense_forward < sense_right:
+            # Random turn
+            self.lfsr.step()
+            if self.lfsr.state & 1:
+                agent.angle = (agent.angle + turn_amount) & 0x3FF
+            else:
+                agent.angle = (agent.angle - turn_amount) & 0x3FF
+        elif sense_left > sense_right:
+            agent.angle = (agent.angle + turn_amount) & 0x3FF
+        else:
+            agent.angle = (agent.angle - turn_amount) & 0x3FF
+
+        # Move forward
+        sin_val = self.trig.sin(agent.angle)
+        cos_val = self.trig.cos(agent.angle)
+
+        dx = self.fp.multiply(cos_val, self.move_speed)
+        dy = self.fp.multiply(sin_val, self.move_speed)
+
+        new_x = (agent.x + dx) & self.fp.mask
+        new_y = (agent.y + dy) & self.fp.mask
+
+        # Convert to pixels and wrap
+        px = int(self.fp.from_fixed(new_x)) % self.width
+        py = int(self.fp.from_fixed(new_y)) % self.height
+
+        # Update position (wrap to valid range)
+        agent.x = self.fp.to_fixed(px)
+        agent.y = self.fp.to_fixed(py)
+
+        # Deposit trail
+        self.trail_map[py, px] = min(255, self.trail_map[py, px] + self.deposit_amount)
+
+    def diffuse_and_decay(self):
+        """Apply diffusion and decay to trail map."""
+        # Simple 3x3 box blur
+        kernel = np.array([[1, 1, 1],
+                           [1, 1, 1],
+                           [1, 1, 1]], dtype=np.float32) / 9.0
+
+        blurred = np.zeros_like(self.trail_map, dtype=np.float32)
+
+        # Manual convolution (to match simple RTL implementation)
+        for y in range(self.height):
+            for x in range(self.width):
+                total = 0
+                for ky in range(-1, 2):
+                    for kx in range(-1, 2):
+                        ny = (y + ky) % self.height
+                        nx = (x + kx) % self.width
+                        total += self.trail_map[ny, nx]
+                blurred[y, x] = total / 9.0
+
+        # Apply decay
+        decay_factor = self.fp.from_fixed(self.decay_rate)
+        self.trail_map = (blurred * decay_factor).astype(np.uint8)
+
+    def step(self):
+        """Run one simulation step."""
+        for agent in self.agents:
+            self.update_agent(agent)
+        self.diffuse_and_decay()
+
+    def run(self, num_steps: int):
+        """Run simulation for given number of steps."""
+        for _ in range(num_steps):
+            self.step()
+
+    def get_trail_map(self) -> np.ndarray:
+        """Get trail map as numpy array."""
+        return self.trail_map.copy()
+
+    def dump_trail_map(self, filename: str):
+        """Dump trail map to binary file for comparison."""
+        self.trail_map.tofile(filename)
+        print(f"Dumped trail map to {filename} ({self.trail_map.size} bytes)")
+
+    def dump_state(self, filename: str):
+        """Dump full state for RTL comparison."""
+        with open(filename, 'w') as f:
+            f.write(f"# Slime Simulator State Dump\n")
+            f.write(f"# Width: {self.width}, Height: {self.height}\n")
+            f.write(f"# Agents: {self.num_agents}\n")
+            f.write(f"# LFSR State: 0x{self.lfsr.state:08X}\n\n")
+
+            f.write("# Agent states (x, y, angle) in fixed-point\n")
+            for i, agent in enumerate(self.agents):
+                f.write(f"{agent.x:08X} {agent.y:08X} {agent.angle:03X}\n")
+
+        print(f"Dumped state to {filename}")
+
+
+def generate_reference_trail(num_steps: int = 100, output_file: str = "reference_trail.bin"):
+    """Generate reference trail map for RTL comparison."""
+    sim = SlimeSimulatorReference(
+        width=640, height=480, num_agents=1000,
+        lfsr_seed=0xDEADBEEF
+    )
+    sim.init_agents_center()
+    sim.run(num_steps)
+    sim.dump_trail_map(output_file)
+    return sim.get_trail_map()
 
 
 def main():

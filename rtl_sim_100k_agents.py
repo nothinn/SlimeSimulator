@@ -21,8 +21,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from slime_simulator import SlimeSimulator, SimulationConfig
-from rtl.sim.python_reference import LFSR
+from slime_simulator import SlimeSimulator, SimulationConfig, LFSR
 
 
 class RTLPythonComparison:

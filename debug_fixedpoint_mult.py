@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 """Debug fixed-point multiplication discrepancy."""
 
-import sys
-sys.path.insert(0, 'rtl/sim')
-
-from python_reference import FixedPoint
+from slime_simulator import FixedPoint
 
 fp = FixedPoint(12, 12)
 
@@ -14,7 +11,7 @@ fp = FixedPoint(12, 12)
 # From the LUT, cos(512) should be -1.0
 
 # Load the LUT value
-from python_reference import TrigLUT
+from slime_simulator import TrigLUT
 trig = TrigLUT(10, 12)
 
 sin_512 = trig.sin(512)

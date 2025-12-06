@@ -15,7 +15,9 @@ from datetime import datetime
 import matplotlib
 matplotlib.use('Agg')  # Non-interactive backend
 import matplotlib.pyplot as plt
-from python_reference import SlimeSimulatorReference
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from slime_simulator import SlimeSimulatorReference
 
 
 class RegressionTest:

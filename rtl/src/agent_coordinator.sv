@@ -38,6 +38,7 @@ module agent_coordinator #(
     output logic lfsr_en_request,
 
     output logic done,
+    output logic step_complete_pulse,  // Pulses when all agents finished processing for one step
 
     // Agent debug interface (for initialization validation)
     input  logic [9:0]  debug_agent_idx,     // Agent index (0-999)
@@ -100,6 +101,10 @@ module agent_coordinator #(
 
     // Previous agent index for write-back
     logic [AGENT_COUNT_LOG-1:0] prev_idx;
+
+    // Step completion tracking
+    logic step_just_completed;
+    logic step_freeze_cycle;  // Freeze for one cycle after step completes to prevent double-processing
 
     // Extract LFSR bit
     logic lfsr_bit;
@@ -174,6 +179,7 @@ module agent_coordinator #(
             current_agent_idx <= '0;
             step_counter <= '0;
             latched_valid <= 1'b0;  // CRITICAL: Initialize latched_valid to prevent spurious write-backs
+            step_freeze_cycle <= 1'b0;
         end else begin
             // DEBUG: Print state transitions (simplified without .name())
             if (state != next_state) begin
@@ -224,11 +230,22 @@ module agent_coordinator #(
                         // Move to next agent
                         if (current_agent_idx < NUM_AGENTS - 1) begin
                             current_agent_idx <= current_agent_idx + 1'b1;
+                            step_just_completed <= 1'b0;
+                            step_freeze_cycle <= 1'b0;
                             $display("[COORD] Advancing to agent[%0d]", current_agent_idx + 1);
                         end else begin
+                            // Step just completed - freeze for one cycle to prevent double-processing
                             current_agent_idx <= '0;
                             step_counter <= step_counter + 1'b1;
-                            $display("[COORD] Completed step %0d, resetting to agent[0]", step_counter);
+                            step_just_completed <= 1'b1;  // Signal step completion
+                            step_freeze_cycle <= 1'b1;    // Prevent next agent from starting this cycle
+                            $display("[COORD] Completed step %0d, resetting to agent[0] (freeze 1 cycle)", step_counter);
+                        end
+                    end else begin
+                        step_just_completed <= 1'b0;
+                        // Clear freeze after one cycle
+                        if (step_freeze_cycle) begin
+                            step_freeze_cycle <= 1'b0;
                         end
                     end
                 end
@@ -272,7 +289,8 @@ module agent_coordinator #(
     // Processor Input Mux
     // =========================================================================
 
-    assign proc_start = (state == RUNNING) && !pause && !proc_busy;
+    // Don't start next agent if we just completed a step (freeze for 1 cycle)
+    assign proc_start = (state == RUNNING) && !pause && !proc_busy && !step_freeze_cycle;
     assign proc_x_in = agent_x[current_agent_idx];
     assign proc_y_in = agent_y[current_agent_idx];
     assign proc_angle_in = agent_angle[current_agent_idx];
@@ -329,6 +347,7 @@ module agent_coordinator #(
     // =========================================================================
 
     assign done = (state == DONE_STATE);
+    assign step_complete_pulse = step_just_completed;
 
     // FIX #3: Export LFSR enable request signal
     assign lfsr_en_request = proc_lfsr_en;

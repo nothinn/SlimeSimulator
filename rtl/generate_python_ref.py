@@ -16,9 +16,9 @@ import argparse
 import numpy as np
 from pathlib import Path
 
-# Add sim directory to path to import python_reference
-sys.path.insert(0, str(Path(__file__).parent / 'sim'))
-from python_reference import SlimeSimulatorReference
+# Import from slime_simulator
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from slime_simulator import SlimeSimulatorReference
 
 
 def generate_reference_trails(

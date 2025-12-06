@@ -23,8 +23,7 @@ from datetime import datetime
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
-from slime_simulator import SlimeSimulator, SimulationConfig
-from rtl.sim.python_reference import LFSR, FixedPoint, TrigLUT
+from slime_simulator import SlimeSimulator, SimulationConfig, LFSR, FixedPoint, TrigLUT
 
 
 class ValidationReport:
