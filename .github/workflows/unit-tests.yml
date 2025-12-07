@@ -33,7 +33,6 @@ jobs:
 
     - name: Run Cocotb unit tests
       working-directory: rtl/sim
-      continue-on-error: true
       run: make test_all
 
     - name: Upload test results
@@ -71,7 +70,6 @@ jobs:
         pip install cocotb numpy pillow scipy
 
     - name: Run regression tests
-      continue-on-error: true
       run: |
         source .venv/bin/activate
         python3 run_regression_tests.py
