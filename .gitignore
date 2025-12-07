@@ -45,6 +45,7 @@ tests/__pycache__/
 *.json
 *.png
 *.csv
+!regression_tests.csv
 *.bin
 *.npy
 vivado*.backup.jou
