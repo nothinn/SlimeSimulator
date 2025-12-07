@@ -5,14 +5,18 @@ project
 target
 .bloop
 
-output
-output_images
-output_center
-output_test*
-test_run_dir
-venv
-__pycache__
+# Python virtual environment
+venv/
+.venv/
+__pycache__/
 *.pyc
+*.pyo
+
+# Generated output directories
+output/
+output_*/
+comparison_*/
+*_frames*/
 
 # RTL simulation outputs
 rtl/sim/sim_build
@@ -24,6 +28,6 @@ dump.vcd
 SlimeSimulatorArticle.pdf
 
 # Regression test outputs
-regression_results/
+regression_results/*
 regression_test*.log
 rtl_comparison_*/
