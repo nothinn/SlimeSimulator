@@ -22,3 +22,8 @@ rtl/sim/results.xml
 dump.vcd
 
 SlimeSimulatorArticle.pdf
+
+# Regression test outputs
+regression_results/
+regression_test*.log
+rtl_comparison_*/
