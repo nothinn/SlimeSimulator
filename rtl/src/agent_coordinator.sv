@@ -105,6 +105,7 @@ module agent_coordinator #(
     // Step completion tracking
     logic step_just_completed;
     logic step_freeze_cycle;  // Freeze for one cycle after step completes to prevent double-processing
+    logic step_writeback_cycle;  // Delayed pulse - fires AFTER last agent write-back completes
 
     // Extract LFSR bit
     logic lfsr_bit;
@@ -180,6 +181,7 @@ module agent_coordinator #(
             step_counter <= '0;
             latched_valid <= 1'b0;  // CRITICAL: Initialize latched_valid to prevent spurious write-backs
             step_freeze_cycle <= 1'b0;
+            step_writeback_cycle <= 1'b0;
         end else begin
             // DEBUG: Print state transitions (simplified without .name())
             if (state != next_state) begin
@@ -216,6 +218,16 @@ module agent_coordinator #(
                         agent_y[prev_idx] <= latched_y_out;
                         agent_angle[prev_idx] <= latched_angle_out;
                         latched_valid <= 1'b0;
+
+                        // If we just completed the last agent, fire write-back complete pulse
+                        // This ensures testbench dumps AFTER agent 999's write-back completes
+                        if (step_freeze_cycle) begin
+                            step_writeback_cycle <= 1'b1;
+                            $display("[COORD] Last agent write-back complete, firing step_complete_pulse");
+                        end
+                    end else begin
+                        // Clear writeback pulse after one cycle
+                        step_writeback_cycle <= 1'b0;
                     end
 
                     if (!pause && proc_done) begin
@@ -347,7 +359,9 @@ module agent_coordinator #(
     // =========================================================================
 
     assign done = (state == DONE_STATE);
-    assign step_complete_pulse = step_just_completed;
+    // FIX: Fire pulse AFTER last agent write-back completes (not when last agent finishes processing)
+    // This ensures testbench dumps agent 999 AFTER its new values are written to memory
+    assign step_complete_pulse = step_writeback_cycle;
 
     // FIX #3: Export LFSR enable request signal
     assign lfsr_en_request = proc_lfsr_en;

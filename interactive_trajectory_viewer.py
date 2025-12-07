@@ -500,6 +500,11 @@ def generate_html(csv_file, width=320, height=240, output_file='trajectory_viewe
                     ctx.rect(rtl_x * SCALE - 3, rtl_y * SCALE - 3, 6, 6);
                     ctx.fill();
 
+                    // Draw agent ID label
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '10px monospace';
+                    ctx.fillText(agent.agent_id, rtl_x * SCALE + 5, rtl_y * SCALE - 5);
+
                     // Draw vector
                     if (showVectors) {{
                         const rad = rtl_angle * Math.PI / 180;
