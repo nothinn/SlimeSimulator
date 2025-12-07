@@ -61,8 +61,10 @@ def generate_circle_spawn_agents(num_agents, width, height, int_bits=12, frac_bi
         spawn_angle_fp = fp.to_fixed(spawn_angle_rad)
 
         # Calculate position on circle: (cx + cos(θ)*r, cy + sin(θ)*r)
-        cos_val = trig.cos_array(np.array([spawn_angle_fp], dtype=np.int64))[0]
-        sin_val = trig.sin_array(np.array([spawn_angle_fp], dtype=np.int64))[0]
+        # Convert angle to index first (matching slime_simulator.py)
+        spawn_angle_idx = trig.angle_to_index(spawn_angle_fp)
+        cos_val = trig.cos(spawn_angle_idx)
+        sin_val = trig.sin(spawn_angle_idx)
 
         # x = cx + cos(angle) * radius
         x_fp = cx_fp + fp.multiply(cos_val, radius_fp)
