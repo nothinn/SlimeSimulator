@@ -31,3 +31,25 @@ SlimeSimulatorArticle.pdf
 regression_results/*
 regression_test*.log
 rtl_comparison_*/
+
+# Test framework outputs
+tests/unit/results.xml
+tests/integration/results/
+tests/system/results/
+tests/synthesis/reports/
+tests/runs*/
+tests/__pycache__/
+
+# Build and generated files
+*.log
+*.json
+*.png
+*.csv
+*.bin
+*.npy
+vivado*.backup.jou
+vivado*.backup.log
+vivado.jou
+vivado.log
+.Xil/
+xsim_work/
