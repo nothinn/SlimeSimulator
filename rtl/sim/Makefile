@@ -23,7 +23,7 @@ TOPLEVEL ?= lfsr
 include $(shell cocotb-config --makefiles)/Makefile.sim
 
 # Test targets
-.PHONY: test_lfsr test_fixed_point test_trig test_vga test_rtl_vs_python test_trail_map test_all test_comparison test_fixed_point_comprehensive test_movement_calculation test_modules_vs_python test_modules_comprehensive test_2x_movement_bug clean_all
+.PHONY: test_lfsr test_fixed_point test_trig test_vga test_trail_map_ram test_trail_map_ram_pipeline0 test_trail_map_ram_pipeline1 test_trail_map_ram_pipeline2 test_rtl_vs_python test_trail_map test_all test_comparison test_fixed_point_comprehensive test_movement_calculation test_modules_vs_python test_modules_comprehensive test_2x_movement_bug clean_all
 
 test_lfsr:
 	$(MAKE) sim VERILOG_SOURCES="$(SRC_DIR)/lfsr.sv" MODULE=test_lfsr TOPLEVEL=lfsr
@@ -36,6 +36,51 @@ test_trig:
 
 test_vga:
 	$(MAKE) sim VERILOG_SOURCES="$(SRC_DIR)/vga_controller.sv" MODULE=test_vga TOPLEVEL=vga_controller
+
+# Trail map RAM tests with different pipeline configurations
+test_trail_map_ram_pipeline0:
+	$(MAKE) sim \
+		VERILOG_SOURCES="$(SRC_DIR)/trail_map_ram.sv" \
+		MODULE=test_trail_map_ram \
+		TOPLEVEL=trail_map_ram \
+		PLUSARGS="+WIDTH=320 +HEIGHT=240 +DATA_WIDTH=18 +PIPELINE_STAGES=0"
+
+test_trail_map_ram_pipeline1:
+	$(MAKE) sim \
+		VERILOG_SOURCES="$(SRC_DIR)/trail_map_ram.sv" \
+		MODULE=test_trail_map_ram \
+		TOPLEVEL=trail_map_ram \
+		PLUSARGS="+WIDTH=320 +HEIGHT=240 +DATA_WIDTH=18 +PIPELINE_STAGES=1"
+
+test_trail_map_ram_pipeline2:
+	$(MAKE) sim \
+		VERILOG_SOURCES="$(SRC_DIR)/trail_map_ram.sv" \
+		MODULE=test_trail_map_ram \
+		TOPLEVEL=trail_map_ram \
+		PLUSARGS="+WIDTH=320 +HEIGHT=240 +DATA_WIDTH=18 +PIPELINE_STAGES=2"
+
+# Run all trail_map_ram tests
+test_trail_map_ram: clean
+	@echo "========================================="
+	@echo "Testing trail_map_ram (pipeline=0)"
+	@echo "========================================="
+	$(MAKE) test_trail_map_ram_pipeline0
+	$(MAKE) clean
+	@echo ""
+	@echo "========================================="
+	@echo "Testing trail_map_ram (pipeline=1)"
+	@echo "========================================="
+	$(MAKE) test_trail_map_ram_pipeline1
+	$(MAKE) clean
+	@echo ""
+	@echo "========================================="
+	@echo "Testing trail_map_ram (pipeline=2)"
+	@echo "========================================="
+	$(MAKE) test_trail_map_ram_pipeline2
+	@echo ""
+	@echo "========================================="
+	@echo "All trail_map_ram tests passed!"
+	@echo "========================================="
 
 test_fixed_point_comprehensive:
 	$(MAKE) sim VERILOG_SOURCES="$(SRC_DIR)/fixed_point_mult.sv" MODULE=test_fixed_point_comprehensive TOPLEVEL=fixed_point_mult
@@ -99,6 +144,8 @@ test_all: clean
 	$(MAKE) test_trig
 	$(MAKE) clean
 	$(MAKE) test_vga
+	$(MAKE) clean
+	$(MAKE) test_trail_map_ram
 
 # RTL vs Python comparison tests (run individual modules against Python reference)
 test_rtl_vs_python_lfsr:

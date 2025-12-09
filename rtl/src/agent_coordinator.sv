@@ -59,9 +59,10 @@ module agent_coordinator #(
     // Store: x (25b), y (25b), angle (25b) per agent = 75 bits × 1000 = ~75KB
     // =========================================================================
 
-    logic signed [FP_TOTAL-1:0] agent_x [NUM_AGENTS];
-    logic signed [FP_TOTAL-1:0] agent_y [NUM_AGENTS];
-    logic signed [FP_TOTAL-1:0] agent_angle [NUM_AGENTS];
+    // Force BRAM inference for agent memory arrays (critical for resource usage)
+    (* ram_style = "block" *) logic signed [FP_TOTAL-1:0] agent_x [NUM_AGENTS];
+    (* ram_style = "block" *) logic signed [FP_TOTAL-1:0] agent_y [NUM_AGENTS];
+    (* ram_style = "block" *) logic signed [FP_TOTAL-1:0] agent_angle [NUM_AGENTS];
 
     // =========================================================================
     // State Machine
@@ -201,6 +202,15 @@ module agent_coordinator #(
                 end
 
                 INITIALIZE: begin
+                    // Debug write has priority in INITIALIZE state as well
+                    if (debug_agent_write_en) begin
+                        case (debug_agent_sel)
+                            2'b00: agent_x[debug_idx_safe] <= debug_agent_data_write;
+                            2'b01: agent_y[debug_idx_safe] <= debug_agent_data_write;
+                            2'b10: agent_angle[debug_idx_safe] <= debug_agent_data_write;
+                            default: ; // No-op
+                        endcase
+                    end
                     current_agent_idx <= '0;
                     step_counter <= '0;
                     if (next_state == RUNNING) begin
@@ -209,8 +219,17 @@ module agent_coordinator #(
                 end
 
                 RUNNING: begin
+                    // Debug write has priority over normal write-back
+                    if (debug_agent_write_en) begin
+                        case (debug_agent_sel)
+                            2'b00: agent_x[debug_idx_safe] <= debug_agent_data_write;
+                            2'b01: agent_y[debug_idx_safe] <= debug_agent_data_write;
+                            2'b10: agent_angle[debug_idx_safe] <= debug_agent_data_write;
+                            default: ; // No-op
+                        endcase
+                    end
                     // Write back results from previous agent (latched on last cycle)
-                    if (latched_valid) begin
+                    else if (latched_valid) begin
                         prev_idx = (current_agent_idx == 0) ? (NUM_AGENTS - 1) : (current_agent_idx - 1'b1);
                         $display("[COORD] Writing back agent[%0d]: x=%0d y=%0d angle=%0d",
                             prev_idx, latched_x_out, latched_y_out, latched_angle_out);
@@ -387,17 +406,7 @@ module agent_coordinator #(
     // =========================================================================
     // Agent Write Interface - Allow testbench to initialize agents
     // =========================================================================
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            // Reset handled by initial block above
-        end else if (debug_agent_write_en) begin
-            case (debug_agent_sel)
-                2'b00: agent_x[debug_idx_safe] <= debug_agent_data_write;
-                2'b01: agent_y[debug_idx_safe] <= debug_agent_data_write;
-                2'b10: agent_angle[debug_idx_safe] <= debug_agent_data_write;
-                default: ; // No-op
-            endcase
-        end
-    end
+    // Debug writes are now merged into the main state machine always block
+    // (in INITIALIZE and RUNNING states) to avoid dual-port RAM inference issues
 
 endmodule

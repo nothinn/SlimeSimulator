@@ -136,10 +136,14 @@ module agent_processor #(
     function automatic [TRIG_BITS-1:0] angle_to_idx(input signed [FP_TOTAL-1:0] angle);
         logic signed [FP_TOTAL-1:0] normalized;
         logic [24:0] scaled;  // Need enough bits for (normalized << 10)
-        // Normalize angle to [0, TWO_PI)
+        // Normalize angle to [0, TWO_PI) using bounded operations
         normalized = angle;
-        while (normalized < 0) normalized = normalized + TWO_PI_FP;
-        while (normalized >= TWO_PI_FP) normalized = normalized - TWO_PI_FP;
+        // Handle negative angles (max 2 iterations needed for typical angles)
+        if (normalized < 0) normalized = normalized + TWO_PI_FP;
+        if (normalized < 0) normalized = normalized + TWO_PI_FP;
+        // Handle angles >= TWO_PI (max 2 iterations needed for typical angles)
+        if (normalized >= TWO_PI_FP) normalized = normalized - TWO_PI_FP;
+        if (normalized >= TWO_PI_FP) normalized = normalized - TWO_PI_FP;
         // Scale from [0, TWO_PI) to [0, 1024) by multiplying by 1024 and dividing by TWO_PI_FP
         // Formula: idx = (angle * 1024) / (2π in FP) = (angle << 10) / 25737
         scaled = (normalized << 10) / 25737;

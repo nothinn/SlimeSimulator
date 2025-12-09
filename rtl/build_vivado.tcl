@@ -22,7 +22,9 @@ add_files -norecurse {
     src/trig_lut.sv
     src/debouncer.sv
     src/agent_processor.sv
+    src/agent_coordinator.sv
     src/agent_orchestrator.sv
+    src/trail_map_ram.sv
 }
 
 # Add hex files for trig LUT

@@ -13,7 +13,7 @@
 // VGA output: 640x480 @ 60Hz
 
 module slime_top #(
-    parameter NUM_AGENTS   = 1000,      // Limited by BRAM
+    parameter NUM_AGENTS   = 100,       // Reduced to 100 to fit on Basys3 (distributed RAM)
     parameter FP_INT_BITS  = 12,
     parameter FP_FRAC_BITS = 12,
     parameter LFSR_WIDTH   = 32,
@@ -207,29 +207,24 @@ module slime_top #(
     (* mark_debug = "true" *) logic [17:0] trail_data_b_in;   // Debug: agent write data
     (* mark_debug = "true" *) logic        trail_we_b;         // Debug: agent write enable
 
-    // Simple dual-port RAM - 18-bit trail values
-    logic [17:0] trail_mem [0:WIDTH*HEIGHT-1];
-
-    // Port A (VGA read)
-    always_ff @(posedge clk_25mhz) begin
-        trail_data_a <= trail_mem[trail_addr_a];
-    end
-
-    // Port B (Agent read/write with accumulation)
-    always_ff @(posedge clk_100mhz) begin
-        if (trail_we_b) begin
-            // Accumulate trail (saturating add)
-            $display("[TRAIL_MEM] Write addr=%0d data=%0d (before=%0d, after=%0d)",
-                trail_addr_b, trail_data_b_in, trail_mem[trail_addr_b],
-                (trail_mem[trail_addr_b] + trail_data_b_in > 18'h3FFFF) ? 18'h3FFFF : (trail_mem[trail_addr_b] + trail_data_b_in));
-            if (trail_mem[trail_addr_b] + trail_data_b_in > 18'h3FFFF) begin
-                trail_mem[trail_addr_b] <= 18'h3FFFF;  // Saturate at 18-bit max
-            end else begin
-                trail_mem[trail_addr_b] <= trail_mem[trail_addr_b] + trail_data_b_in;
-            end
-        end
-        trail_data_b_out <= trail_mem[trail_addr_b];
-    end
+    // Trail map RAM instance
+    trail_map_ram #(
+        .WIDTH(WIDTH),
+        .HEIGHT(HEIGHT),
+        .DATA_WIDTH(18),
+        .PIPELINE_STAGES(0)  // No pipeline for now (can be increased for timing closure)
+    ) u_trail_ram (
+        .clk_a(clk_25mhz),
+        .en_a(1'b1),  // VGA always enabled
+        .addr_a(trail_addr_a),
+        .data_a(trail_data_a),
+        .clk_b(clk_100mhz),
+        .en_b(1'b1),  // Agent reads always enabled
+        .addr_b(trail_addr_b),
+        .data_b_in(trail_data_b_in),
+        .we_b(trail_we_b),
+        .data_b_out(trail_data_b_out)
+    );
 
     // =========================================================================
     // VGA Controller
