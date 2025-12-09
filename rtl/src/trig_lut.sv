@@ -32,10 +32,19 @@ module trig_lut #(
         $display("[TRIG_LUT] Loaded sin_rom[511]=%h, cos_rom[511]=%h", sin_rom[511], cos_rom[511]);
     end
 
+    // Debug: Capture ROM values to verify loading (these will appear in VCD)
+    logic signed [DATA_BITS-1:0] rom_sin_value;
+    logic signed [DATA_BITS-1:0] rom_cos_value;
+
     // Registered outputs for timing
     always_ff @(posedge clk) begin
-        sin_out <= sin_rom[angle_idx];
-        cos_out <= cos_rom[angle_idx];
+        // First read from ROM (combinational)
+        rom_sin_value <= sin_rom[angle_idx];
+        rom_cos_value <= cos_rom[angle_idx];
+
+        // Then output (will show in VCD if ROM is loaded correctly)
+        sin_out <= rom_sin_value;
+        cos_out <= rom_cos_value;
     end
 
 endmodule
@@ -75,12 +84,23 @@ module trig_lut_dual #(
         $display("[TRIG_LUT_DUAL] Loaded sin_rom[0]=%h, cos_rom[0]=%h", sin_rom[0], cos_rom[0]);
     end
 
+    // Debug: Capture ROM values to verify loading (these will appear in VCD)
+    logic signed [DATA_BITS-1:0] rom_sin_a, rom_cos_a;
+    logic signed [DATA_BITS-1:0] rom_sin_b, rom_cos_b;
+
     // Registered outputs
     always_ff @(posedge clk) begin
-        sin_a <= sin_rom[angle_a];
-        cos_a <= cos_rom[angle_a];
-        sin_b <= sin_rom[angle_b];
-        cos_b <= cos_rom[angle_b];
+        // First read from ROM (combinational)
+        rom_sin_a <= sin_rom[angle_a];
+        rom_cos_a <= cos_rom[angle_a];
+        rom_sin_b <= sin_rom[angle_b];
+        rom_cos_b <= cos_rom[angle_b];
+
+        // Then output (will show in VCD if ROM is loaded correctly)
+        sin_a <= rom_sin_a;
+        cos_a <= rom_cos_a;
+        sin_b <= rom_sin_b;
+        cos_b <= rom_cos_b;
     end
 
 endmodule

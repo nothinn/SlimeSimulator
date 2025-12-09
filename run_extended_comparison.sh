@@ -253,6 +253,13 @@ if [[ "$DO_BUILD" == true ]]; then
 
     cd "$RTL_SIM_DIR"
 
+    # Copy hex files to sim directory so $readmemh can find them
+    if [ -f obj_dir/sin_lut.hex ] && [ -f obj_dir/cos_lut.hex ]; then
+        cp obj_dir/sin_lut.hex .
+        cp obj_dir/cos_lut.hex .
+        print_info "  Copied trig LUT hex files to sim directory"
+    fi
+
     if [[ ! -f obj_dir/slime_verilator_full ]]; then
         print_error "Executable not built!"
         exit 1
