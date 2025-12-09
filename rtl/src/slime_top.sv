@@ -319,20 +319,12 @@ module slime_top #(
 
                 SIM_DIFFUSE: begin
                     // Apply decay to trail map (one pixel per cycle)
-                    // TEMPORARILY DISABLED - Multi-driver conflict with Port B
-                    // TODO: Move decay into Port B always block or use separate memory port
+                    // REMOVED: Old trail_mem references - now using trail_map_ram module
+                    // TODO: Implement decay using trail_map_ram Port B interface
                     if (!sim_pause) begin
-                        // Read current trail value
-                        trail_val_before_decay <= trail_mem[agent_idx];
-
-                        // Multiply by decay factor (shift result for fixed-point)
-                        // trail_mem[i] * FP_DECAY >> 12
-                        trail_val_after_mult <= trail_mem[agent_idx] * FP_DECAY;
-                        trail_val_decayed <= (trail_mem[agent_idx] * FP_DECAY) >> FP_FRAC_BITS;
-
-                        // Write back decayed value
-                        // COMMENTED OUT - causes multi-driver error with Port B
-                        // trail_mem[agent_idx] <= (trail_mem[agent_idx] * FP_DECAY) >> FP_FRAC_BITS;
+                        // REMOVED: trail_val_before_decay <= trail_mem[agent_idx];
+                        // REMOVED: trail_val_after_mult <= trail_mem[agent_idx] * FP_DECAY;
+                        // REMOVED: trail_val_decayed <= (trail_mem[agent_idx] * FP_DECAY) >> FP_FRAC_BITS;
 
                         // Advance to next pixel
                         if (agent_idx == (WIDTH * HEIGHT - 1)) begin
@@ -466,8 +458,9 @@ module slime_top #(
     // =========================================================================
     // Debug Interface - Allow testbench to read trail memory and agent state
     // =========================================================================
-    // Combinatorial read for fast testbench access without advancing simulation time
-    assign debug_trail_data = trail_mem[debug_trail_addr[14:0]];  // Limit index to 15 bits for 76800 address space
+    // REMOVED: Old trail_mem debug read - now using trail_map_ram module
+    // TODO: Connect debug_trail_data to trail_map_ram Port A or add debug port
+    assign debug_trail_data = '0;  // Placeholder - was: trail_mem[debug_trail_addr[14:0]]
     // Agent debug data is passed through from coordinator
 
 endmodule
