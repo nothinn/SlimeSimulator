@@ -27,6 +27,9 @@ module trig_lut #(
     initial begin
         $readmemh(SIN_FILE, sin_rom);
         $readmemh(COS_FILE, cos_rom);
+        $display("[TRIG_LUT] Loaded sin_rom[0]=%h, cos_rom[0]=%h", sin_rom[0], cos_rom[0]);
+        $display("[TRIG_LUT] Loaded sin_rom[256]=%h, cos_rom[256]=%h", sin_rom[256], cos_rom[256]);
+        $display("[TRIG_LUT] Loaded sin_rom[511]=%h, cos_rom[511]=%h", sin_rom[511], cos_rom[511]);
     end
 
     // Registered outputs for timing
@@ -69,6 +72,7 @@ module trig_lut_dual #(
     initial begin
         $readmemh(SIN_FILE, sin_rom);
         $readmemh(COS_FILE, cos_rom);
+        $display("[TRIG_LUT_DUAL] Loaded sin_rom[0]=%h, cos_rom[0]=%h", sin_rom[0], cos_rom[0]);
     end
 
     // Registered outputs
