@@ -194,6 +194,15 @@ module agent_coordinator #(
 
             case (state)
                 IDLE: begin
+                    // Debug write has priority in IDLE state (for testbench initialization)
+                    if (debug_agent_write_en) begin
+                        case (debug_agent_sel)
+                            2'b00: agent_x[debug_idx_safe] <= debug_agent_data_write;
+                            2'b01: agent_y[debug_idx_safe] <= debug_agent_data_write;
+                            2'b10: agent_angle[debug_idx_safe] <= debug_agent_data_write;
+                            default: ; // No-op
+                        endcase
+                    end
                     current_agent_idx <= '0;
                     step_counter <= '0;
                     if (next_state == INITIALIZE) begin

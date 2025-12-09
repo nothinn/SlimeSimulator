@@ -1,0 +1,737 @@
+#-----------------------------------------------------------
+# Vivado v2025.2 (64-bit)
+# SW Build 6299465 on Fri Nov 14 12:34:56 MST 2025
+# IP Build 6300035 on Fri Nov 14 10:48:45 MST 2025
+# SharedData Build 6298862 on Thu Nov 13 04:50:51 MST 2025
+# Start of session at: Tue Dec  9 09:20:48 2025
+# Process ID         : 170691
+# Current directory  : /home/reson/SlimeSimulator/rtl/vivado_project/slime_simulator.runs/synth_1
+# Command line       : vivado -log slime_top.vds -product Vivado -mode batch -messageDb vivado.pb -notrace -source slime_top.tcl
+# Log file           : /home/reson/SlimeSimulator/rtl/vivado_project/slime_simulator.runs/synth_1/slime_top.vds
+# Journal file       : /home/reson/SlimeSimulator/rtl/vivado_project/slime_simulator.runs/synth_1/vivado.jou
+# Running On         : reson-Test1
+# Platform           : Ubuntu
+# Operating System   : Ubuntu 24.04.3 LTS
+# Processor Detail   : Intel(R) Core(TM) i7-10875H CPU @ 2.30GHz
+# CPU Frequency      : 4589.036 MHz
+# CPU Physical cores : 8
+# CPU Logical cores  : 16
+# Host memory        : 67041 MB
+# Swap memory        : 8589 MB
+# Total Virtual      : 75631 MB
+# Available Virtual  : 67668 MB
+#-----------------------------------------------------------
+source slime_top.tcl -notrace
+Command: synth_design -top slime_top -part xc7a35tcpg236-1
+Starting synth_design
+Attempting to get a license for feature 'Synthesis' and/or device 'xc7a35t'
+INFO: [Common 17-349] Got license for feature 'Synthesis' and/or device 'xc7a35t'
+INFO: [Device 21-403] Loading part xc7a35tcpg236-1
+INFO: [Synth 8-7079] Multithreading enabled for synth_design using a maximum of 7 processes.
+INFO: [Synth 8-7078] Launching helper process for spawning children vivado processes
+INFO: [Synth 8-7075] Helper process launched with PID 170722
+---------------------------------------------------------------------------------
+Starting RTL Elaboration : Time (s): cpu = 00:00:03 ; elapsed = 00:00:03 . Memory (MB): peak = 2206.723 ; gain = 482.875 ; free physical = 39616 ; free virtual = 63263
+---------------------------------------------------------------------------------
+WARNING: [Synth 8-6901] identifier 'debug_idx_safe' is used before its declaration [/home/reson/SlimeSimulator/rtl/src/agent_coordinator.sv:208]
+WARNING: [Synth 8-6901] identifier 'debug_idx_safe' is used before its declaration [/home/reson/SlimeSimulator/rtl/src/agent_coordinator.sv:209]
+WARNING: [Synth 8-6901] identifier 'debug_idx_safe' is used before its declaration [/home/reson/SlimeSimulator/rtl/src/agent_coordinator.sv:210]
+WARNING: [Synth 8-6901] identifier 'debug_idx_safe' is used before its declaration [/home/reson/SlimeSimulator/rtl/src/agent_coordinator.sv:225]
+WARNING: [Synth 8-6901] identifier 'debug_idx_safe' is used before its declaration [/home/reson/SlimeSimulator/rtl/src/agent_coordinator.sv:226]
+WARNING: [Synth 8-6901] identifier 'debug_idx_safe' is used before its declaration [/home/reson/SlimeSimulator/rtl/src/agent_coordinator.sv:227]
+WARNING: [Synth 8-10835] illegal leading underscore character in based number '_0F33' [/home/reson/SlimeSimulator/rtl/src/slime_top.sv:284]
+INFO: [Synth 8-11241] undeclared symbol 'sim_trail_we', assumed default net type 'wire' [/home/reson/SlimeSimulator/rtl/src/slime_top.sv:371]
+WARNING: [Synth 8-8895] 'sim_trail_we' is already implicitly declared on line 371 [/home/reson/SlimeSimulator/rtl/src/slime_top.sv:395]
+INFO: [Synth 8-6157] synthesizing module 'slime_top' [/home/reson/SlimeSimulator/rtl/src/slime_top.sv:15]
+INFO: [Synth 8-6157] synthesizing module 'debouncer_array' [/home/reson/SlimeSimulator/rtl/src/debouncer.sv:80]
+	Parameter NUM_BUTTONS bound to: 5 - type: integer 
+	Parameter CLK_FREQ bound to: 100000000 - type: integer 
+	Parameter DEBOUNCE_MS bound to: 20 - type: integer 
+INFO: [Synth 8-6157] synthesizing module 'debouncer' [/home/reson/SlimeSimulator/rtl/src/debouncer.sv:5]
+	Parameter CLK_FREQ bound to: 100000000 - type: integer 
+	Parameter DEBOUNCE_MS bound to: 20 - type: integer 
+INFO: [Synth 8-6155] done synthesizing module 'debouncer' (0#1) [/home/reson/SlimeSimulator/rtl/src/debouncer.sv:5]
+INFO: [Synth 8-6155] done synthesizing module 'debouncer_array' (0#1) [/home/reson/SlimeSimulator/rtl/src/debouncer.sv:80]
+INFO: [Synth 8-6157] synthesizing module 'lfsr' [/home/reson/SlimeSimulator/rtl/src/lfsr.sv:8]
+	Parameter WIDTH bound to: 32 - type: integer 
+	Parameter SEED bound to: -559038737 - type: integer 
+INFO: [Synth 8-6155] done synthesizing module 'lfsr' (0#1) [/home/reson/SlimeSimulator/rtl/src/lfsr.sv:8]
+INFO: [Synth 8-6157] synthesizing module 'trail_map_ram' [/home/reson/SlimeSimulator/rtl/src/trail_map_ram.sv:12]
+	Parameter WIDTH bound to: 320 - type: integer 
+	Parameter HEIGHT bound to: 240 - type: integer 
+	Parameter DATA_WIDTH bound to: 18 - type: integer 
+	Parameter PIPELINE_STAGES bound to: 0 - type: integer 
+WARNING: [Synth 8-6896] loop limit (65536) exceeded inside initial block, initial block items will be ignored [/home/reson/SlimeSimulator/rtl/src/trail_map_ram.sv:39]
+INFO: [Synth 8-6155] done synthesizing module 'trail_map_ram' (0#1) [/home/reson/SlimeSimulator/rtl/src/trail_map_ram.sv:12]
+INFO: [Synth 8-6157] synthesizing module 'vga_controller' [/home/reson/SlimeSimulator/rtl/src/vga_controller.sv:9]
+INFO: [Synth 8-6155] done synthesizing module 'vga_controller' (0#1) [/home/reson/SlimeSimulator/rtl/src/vga_controller.sv:9]
+WARNING: [Synth 8-689] width (18) of port connection 'pixel_data' does not match port width (8) of module 'vga_controller' [/home/reson/SlimeSimulator/rtl/src/slime_top.sv:261]
+INFO: [Synth 8-6157] synthesizing module 'agent_coordinator' [/home/reson/SlimeSimulator/rtl/src/agent_coordinator.sv:9]
+	Parameter NUM_AGENTS bound to: 100 - type: integer 
+	Parameter FP_INT_BITS bound to: 12 - type: integer 
+	Parameter FP_FRAC_BITS bound to: 12 - type: integer 
+	Parameter FP_TOTAL bound to: 25 - type: integer 
+	Parameter TRIG_BITS bound to: 10 - type: integer 
+	Parameter WIDTH bound to: 320 - type: integer 
+	Parameter HEIGHT bound to: 240 - type: integer 
+INFO: [Synth 8-6157] synthesizing module 'agent_processor' [/home/reson/SlimeSimulator/rtl/src/agent_processor.sv:14]
+	Parameter FP_INT_BITS bound to: 12 - type: integer 
+	Parameter FP_FRAC_BITS bound to: 12 - type: integer 
+	Parameter FP_TOTAL bound to: 25 - type: integer 
+	Parameter TRIG_BITS bound to: 10 - type: integer 
+	Parameter WIDTH bound to: 320 - type: integer 
+	Parameter HEIGHT bound to: 240 - type: integer 
+INFO: [Synth 8-6157] synthesizing module 'trig_lut' [/home/reson/SlimeSimulator/rtl/src/trig_lut.sv:7]
+	Parameter ADDR_BITS bound to: 10 - type: integer 
+	Parameter DATA_BITS bound to: 25 - type: integer 
+	Parameter FRAC_BITS bound to: 12 - type: integer 
+INFO: [Synth 8-3876] $readmem data file 'sin_lut.hex' is read successfully [/home/reson/SlimeSimulator/rtl/src/trig_lut.sv:28]
+INFO: [Synth 8-3876] $readmem data file 'cos_lut.hex' is read successfully [/home/reson/SlimeSimulator/rtl/src/trig_lut.sv:29]
+INFO: [Synth 8-6155] done synthesizing module 'trig_lut' (0#1) [/home/reson/SlimeSimulator/rtl/src/trig_lut.sv:7]
+INFO: [Synth 8-6157] synthesizing module 'fixed_point_mult' [/home/reson/SlimeSimulator/rtl/src/fixed_point_mult.sv:5]
+	Parameter INT_BITS bound to: 12 - type: integer 
+	Parameter FRAC_BITS bound to: 12 - type: integer 
+INFO: [Synth 8-6155] done synthesizing module 'fixed_point_mult' (0#1) [/home/reson/SlimeSimulator/rtl/src/fixed_point_mult.sv:5]
+INFO: [Synth 8-6155] done synthesizing module 'agent_processor' (0#1) [/home/reson/SlimeSimulator/rtl/src/agent_processor.sv:14]
+INFO: [Synth 8-6155] done synthesizing module 'agent_coordinator' (0#1) [/home/reson/SlimeSimulator/rtl/src/agent_coordinator.sv:9]
+INFO: [Synth 8-6155] done synthesizing module 'slime_top' (0#1) [/home/reson/SlimeSimulator/rtl/src/slime_top.sv:15]
+WARNING: [Synth 8-6014] Unused sequential element pipe_a_reg[0] was removed.  [/home/reson/SlimeSimulator/rtl/src/trail_map_ram.sv:76]
+WARNING: [Synth 8-6014] Unused sequential element pipe_a_reg[1] was removed.  [/home/reson/SlimeSimulator/rtl/src/trail_map_ram.sv:76]
+WARNING: [Synth 8-6014] Unused sequential element pipe_b_reg[0] was removed.  [/home/reson/SlimeSimulator/rtl/src/trail_map_ram.sv:82]
+WARNING: [Synth 8-6014] Unused sequential element pipe_b_reg[1] was removed.  [/home/reson/SlimeSimulator/rtl/src/trail_map_ram.sv:82]
+WARNING: [Synth 8-6014] Unused sequential element sum_x_reg was removed.  [/home/reson/SlimeSimulator/rtl/src/agent_processor.sv:350]
+WARNING: [Synth 8-6014] Unused sequential element sum_y_reg was removed.  [/home/reson/SlimeSimulator/rtl/src/agent_processor.sv:351]
+WARNING: [Synth 8-6014] Unused sequential element wrapped_x_reg was removed.  [/home/reson/SlimeSimulator/rtl/src/agent_processor.sv:355]
+WARNING: [Synth 8-6014] Unused sequential element wrapped_y_reg was removed.  [/home/reson/SlimeSimulator/rtl/src/agent_processor.sv:356]
+WARNING: [Synth 8-6014] Unused sequential element step_counter_reg was removed.  [/home/reson/SlimeSimulator/rtl/src/agent_coordinator.sv:182]
+WARNING: [Synth 8-6014] Unused sequential element prev_idx_reg was removed.  [/home/reson/SlimeSimulator/rtl/src/agent_coordinator.sv:233]
+WARNING: [Synth 8-6014] Unused sequential element step_just_completed_reg was removed.  [/home/reson/SlimeSimulator/rtl/src/agent_coordinator.sv:264]
+WARNING: [Synth 8-7137] Register agent_x_reg in module agent_coordinator has both Set and reset with same priority. This may cause simulation mismatches. Consider rewriting code 
+WARNING: [Synth 8-7137] Register agent_y_reg in module agent_coordinator has both Set and reset with same priority. This may cause simulation mismatches. Consider rewriting code 
+WARNING: [Synth 8-7137] Register agent_angle_reg in module agent_coordinator has both Set and reset with same priority. This may cause simulation mismatches. Consider rewriting code 
+WARNING: [Synth 8-7137] Register latched_x_out_reg in module agent_coordinator has both Set and reset with same priority. This may cause simulation mismatches. Consider rewriting code  [/home/reson/SlimeSimulator/rtl/src/agent_coordinator.sv:236]
+WARNING: [Synth 8-7137] Register latched_y_out_reg in module agent_coordinator has both Set and reset with same priority. This may cause simulation mismatches. Consider rewriting code  [/home/reson/SlimeSimulator/rtl/src/agent_coordinator.sv:237]
+WARNING: [Synth 8-7137] Register latched_angle_out_reg in module agent_coordinator has both Set and reset with same priority. This may cause simulation mismatches. Consider rewriting code  [/home/reson/SlimeSimulator/rtl/src/agent_coordinator.sv:238]
+WARNING: [Synth 8-4767] Trying to implement RAM 'agent_x_reg' in registers. Block RAM or DRAM implementation is not possible; see log for reasons. [/home/reson/SlimeSimulator/rtl/src/agent_coordinator.sv:236]
+Reason is one or more of the following :
+	1: Invalid write to RAM. 
+	2: Invalid write to RAM. 
+	3: RAM is sensitive to asynchronous reset signal. this RTL style is not supported. 
+WARNING: [Synth 8-4767] Trying to implement RAM 'agent_y_reg' in registers. Block RAM or DRAM implementation is not possible; see log for reasons. [/home/reson/SlimeSimulator/rtl/src/agent_coordinator.sv:237]
+Reason is one or more of the following :
+	1: Invalid write to RAM. 
+	2: Invalid write to RAM. 
+	3: RAM is sensitive to asynchronous reset signal. this RTL style is not supported. 
+WARNING: [Synth 8-4767] Trying to implement RAM 'agent_angle_reg' in registers. Block RAM or DRAM implementation is not possible; see log for reasons. [/home/reson/SlimeSimulator/rtl/src/agent_coordinator.sv:238]
+Reason is one or more of the following :
+	1: Invalid write to RAM. 
+	2: Invalid write to RAM. 
+	3: RAM is sensitive to asynchronous reset signal. this RTL style is not supported. 
+INFO: [Synth 8-6071] Mark debug on the nets applies keep_hierarchy on instance 'u_debouncer'. This will prevent further optimization [/home/reson/SlimeSimulator/rtl/src/slime_top.sv:121]
+INFO: [Synth 8-6071] Mark debug on the nets applies keep_hierarchy on instance 'u_coordinator'. This will prevent further optimization [/home/reson/SlimeSimulator/rtl/src/slime_top.sv:431]
+INFO: [Synth 8-6071] Mark debug on the nets applies keep_hierarchy on instance 'u_lfsr'. This will prevent further optimization [/home/reson/SlimeSimulator/rtl/src/slime_top.sv:172]
+INFO: [Synth 8-6071] Mark debug on the nets applies keep_hierarchy on instance 'u_trail_ram'. This will prevent further optimization [/home/reson/SlimeSimulator/rtl/src/slime_top.sv:216]
+INFO: [Synth 8-6071] Mark debug on the nets applies keep_hierarchy on instance 'u_vga'. This will prevent further optimization [/home/reson/SlimeSimulator/rtl/src/slime_top.sv:249]
+WARNING: [Synth 8-3848] Net orch_trail_read_data in module/entity slime_top does not have driver. [/home/reson/SlimeSimulator/rtl/src/slime_top.sv:386]
+WARNING: [Synth 8-3848] Net sim_trail_addr in module/entity slime_top does not have driver. [/home/reson/SlimeSimulator/rtl/src/slime_top.sv:393]
+WARNING: [Synth 8-3848] Net sim_trail_data in module/entity slime_top does not have driver. [/home/reson/SlimeSimulator/rtl/src/slime_top.sv:394]
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[17] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[16] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[15] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[14] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[13] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[12] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[11] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[10] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[9] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[8] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[7] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[6] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[5] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[4] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[3] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[2] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[1] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[0] driven by constant 0
+WARNING: [Synth 8-7129] Port trail_read_data[24] in module agent_processor is either unconnected or has no load
+WARNING: [Synth 8-7129] Port trail_read_data[23] in module agent_processor is either unconnected or has no load
+WARNING: [Synth 8-7129] Port trail_read_data[22] in module agent_processor is either unconnected or has no load
+WARNING: [Synth 8-7129] Port trail_read_data[21] in module agent_processor is either unconnected or has no load
+WARNING: [Synth 8-7129] Port trail_read_data[20] in module agent_processor is either unconnected or has no load
+WARNING: [Synth 8-7129] Port trail_read_data[19] in module agent_processor is either unconnected or has no load
+WARNING: [Synth 8-7129] Port trail_read_data[18] in module agent_processor is either unconnected or has no load
+WARNING: [Synth 8-7129] Port trail_read_data[17] in module agent_processor is either unconnected or has no load
+WARNING: [Synth 8-7129] Port trail_read_data[16] in module agent_processor is either unconnected or has no load
+WARNING: [Synth 8-7129] Port trail_read_data[15] in module agent_processor is either unconnected or has no load
+WARNING: [Synth 8-7129] Port trail_read_data[14] in module agent_processor is either unconnected or has no load
+WARNING: [Synth 8-7129] Port trail_read_data[13] in module agent_processor is either unconnected or has no load
+WARNING: [Synth 8-7129] Port trail_read_data[12] in module agent_processor is either unconnected or has no load
+WARNING: [Synth 8-7129] Port trail_read_data[11] in module agent_processor is either unconnected or has no load
+WARNING: [Synth 8-7129] Port trail_read_data[10] in module agent_processor is either unconnected or has no load
+WARNING: [Synth 8-7129] Port trail_read_data[9] in module agent_processor is either unconnected or has no load
+WARNING: [Synth 8-7129] Port trail_read_data[8] in module agent_processor is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[31] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[30] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[29] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[28] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[27] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[26] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[25] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[24] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[23] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[22] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[21] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[20] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[19] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[18] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[17] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[16] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[15] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[14] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[13] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[12] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[11] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[10] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[9] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[8] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[7] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[6] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[5] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[4] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[3] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[2] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[1] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port pixel_data[3] in module vga_controller is either unconnected or has no load
+WARNING: [Synth 8-7129] Port pixel_data[2] in module vga_controller is either unconnected or has no load
+WARNING: [Synth 8-7129] Port pixel_data[1] in module vga_controller is either unconnected or has no load
+WARNING: [Synth 8-7129] Port pixel_data[0] in module vga_controller is either unconnected or has no load
+WARNING: [Synth 8-7129] Port addr_a[18] in module trail_map_ram is either unconnected or has no load
+WARNING: [Synth 8-7129] Port addr_a[17] in module trail_map_ram is either unconnected or has no load
+WARNING: [Synth 8-7129] Port addr_b[18] in module trail_map_ram is either unconnected or has no load
+WARNING: [Synth 8-7129] Port addr_b[17] in module trail_map_ram is either unconnected or has no load
+WARNING: [Synth 8-7129] Port sw[15] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port sw[14] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port sw[13] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port sw[12] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port sw[11] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port sw[10] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port sw[9] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port sw[8] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port sw[7] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port sw[6] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port sw[5] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port sw[4] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port sw[3] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port sw[2] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port sw[1] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port debug_trail_addr[18] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port debug_trail_addr[17] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port debug_trail_addr[16] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port debug_trail_addr[15] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port debug_trail_addr[14] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port debug_trail_addr[13] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port debug_trail_addr[12] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port debug_trail_addr[11] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port debug_trail_addr[10] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port debug_trail_addr[9] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port debug_trail_addr[8] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port debug_trail_addr[7] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port debug_trail_addr[6] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port debug_trail_addr[5] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port debug_trail_addr[4] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port debug_trail_addr[3] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port debug_trail_addr[2] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port debug_trail_addr[1] in module slime_top is either unconnected or has no load
+WARNING: [Synth 8-7129] Port debug_trail_addr[0] in module slime_top is either unconnected or has no load
+---------------------------------------------------------------------------------
+Finished RTL Elaboration : Time (s): cpu = 00:00:11 ; elapsed = 00:00:11 . Memory (MB): peak = 2362.012 ; gain = 638.164 ; free physical = 39516 ; free virtual = 63165
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Handling Custom Attributes
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Handling Custom Attributes : Time (s): cpu = 00:00:11 ; elapsed = 00:00:11 . Memory (MB): peak = 2364.980 ; gain = 641.133 ; free physical = 39516 ; free virtual = 63165
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished RTL Optimization Phase 1 : Time (s): cpu = 00:00:11 ; elapsed = 00:00:11 . Memory (MB): peak = 2364.980 ; gain = 641.133 ; free physical = 39516 ; free virtual = 63165
+---------------------------------------------------------------------------------
+Netlist sorting complete. Time (s): cpu = 00:00:00.09 ; elapsed = 00:00:00.09 . Memory (MB): peak = 2364.980 ; gain = 0.000 ; free physical = 39516 ; free virtual = 63165
+INFO: [Project 1-570] Preparing netlist for logic optimization
+
+Processing XDC Constraints
+Initializing timing engine
+Parsing XDC File [/home/reson/SlimeSimulator/rtl/constraints/basys3.xdc]
+Finished Parsing XDC File [/home/reson/SlimeSimulator/rtl/constraints/basys3.xdc]
+INFO: [Project 1-236] Implementation specific constraints were found while reading constraint file [/home/reson/SlimeSimulator/rtl/constraints/basys3.xdc]. These constraints will be ignored for synthesis but will be used in implementation. Impacted constraints are listed in the file [.Xil/slime_top_propImpl.xdc].
+Resolution: To avoid this warning, move constraints listed in [.Xil/slime_top_propImpl.xdc] to another XDC file and exclude this new file from synthesis with the used_in_synthesis property (File Properties dialog in GUI) and re-run elaboration/synthesis.
+Completed Processing XDC Constraints
+
+Netlist sorting complete. Time (s): cpu = 00:00:00 ; elapsed = 00:00:00 . Memory (MB): peak = 2470.445 ; gain = 0.000 ; free physical = 39524 ; free virtual = 63173
+INFO: [Project 1-111] Unisim Transformation Summary:
+No Unisim elements were transformed.
+
+Constraint Validation Runtime : Time (s): cpu = 00:00:00.02 ; elapsed = 00:00:00.02 . Memory (MB): peak = 2470.480 ; gain = 0.000 ; free physical = 39523 ; free virtual = 63172
+---------------------------------------------------------------------------------
+Finished Constraint Validation : Time (s): cpu = 00:00:18 ; elapsed = 00:00:17 . Memory (MB): peak = 2470.480 ; gain = 746.633 ; free physical = 39534 ; free virtual = 63183
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Loading Part and Timing Information
+---------------------------------------------------------------------------------
+Loading part: xc7a35tcpg236-1
+---------------------------------------------------------------------------------
+Finished Loading Part and Timing Information : Time (s): cpu = 00:00:18 ; elapsed = 00:00:17 . Memory (MB): peak = 2478.449 ; gain = 754.602 ; free physical = 39534 ; free virtual = 63183
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Applying 'set_property' XDC Constraints
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished applying 'set_property' XDC Constraints : Time (s): cpu = 00:00:18 ; elapsed = 00:00:17 . Memory (MB): peak = 2478.449 ; gain = 754.602 ; free physical = 39534 ; free virtual = 63183
+---------------------------------------------------------------------------------
+INFO: [Synth 8-802] inferred FSM for state register 'state_reg' in module 'agent_processor'
+INFO: [Synth 8-802] inferred FSM for state register 'state_reg' in module 'agent_coordinator'
+INFO: [Synth 8-802] inferred FSM for state register 'sim_state_reg' in module 'slime_top'
+---------------------------------------------------------------------------------------------------
+                   State |                     New Encoding |                Previous Encoding 
+---------------------------------------------------------------------------------------------------
+                    IDLE |                            00101 |                            00000
+         CALC_SENSOR_F_X |                            01100 |                            00001
+         CALC_SENSOR_F_Y |                            01010 |                            00010
+            READ_TRAIL_F |                            00111 |                            00011
+            WAIT_TRAIL_F |                            01000 |                            00100
+         CALC_SENSOR_L_X |                            10011 |                            00101
+         CALC_SENSOR_L_Y |                            10001 |                            00110
+            READ_TRAIL_L |                            01111 |                            00111
+            WAIT_TRAIL_L |                            10000 |                            01000
+         CALC_SENSOR_R_X |                            10010 |                            01001
+         CALC_SENSOR_R_Y |                            01110 |                            01010
+            READ_TRAIL_R |                            01101 |                            01011
+            WAIT_TRAIL_R |                            00011 |                            01100
+        SENSORY_DECISION |                            00010 |                            01101
+     WAIT_NEW_ANGLE_TRIG |                            00000 |                            01110
+             CALC_MOVE_X |                            00001 |                            01111
+             CALC_MOVE_Y |                            01011 |                            10000
+              UPDATE_POS |                            01001 |                            10001
+             WRITE_TRAIL |                            00110 |                            10010
+              DONE_STATE |                            00100 |                            10011
+---------------------------------------------------------------------------------------------------
+INFO: [Synth 8-3354] encoded FSM with state register 'state_reg' using encoding 'sequential' in module 'agent_processor'
+---------------------------------------------------------------------------------------------------
+                   State |                     New Encoding |                Previous Encoding 
+---------------------------------------------------------------------------------------------------
+                    IDLE |                              001 |                              000
+              INITIALIZE |                              010 |                              001
+                 RUNNING |                              100 |                              010
+---------------------------------------------------------------------------------------------------
+INFO: [Synth 8-3354] encoded FSM with state register 'state_reg' using encoding 'one-hot' in module 'agent_coordinator'
+INFO: [Synth 8-6159] Found Keep on FSM register 'sim_state_reg' in module 'slime_top', re-encoding will not be performed
+---------------------------------------------------------------------------------------------------
+                   State |                     New Encoding |                Previous Encoding 
+---------------------------------------------------------------------------------------------------
+*
+                SIM_IDLE |                             0000 |                             0000
+                SIM_INIT |                             0001 |                             0001
+          SIM_RUN_AGENTS |                             0010 |                             0010
+---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished RTL Optimization Phase 2 : Time (s): cpu = 00:00:24 ; elapsed = 00:00:23 . Memory (MB): peak = 2478.449 ; gain = 754.602 ; free physical = 39568 ; free virtual = 63218
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start RTL Component Statistics 
+---------------------------------------------------------------------------------
+Detailed RTL Component Info : 
++---Adders : 
+	   2 Input   32 Bit       Adders := 2     
+	   2 Input   26 Bit       Adders := 4     
+	   2 Input   25 Bit       Adders := 28    
+	   3 Input   25 Bit       Adders := 2     
+	   2 Input   21 Bit       Adders := 5     
+	   2 Input   17 Bit       Adders := 1     
+	   2 Input   10 Bit       Adders := 5     
+	   2 Input    9 Bit       Adders := 2     
+	   2 Input    7 Bit       Adders := 2     
+	   2 Input    4 Bit       Adders := 1     
+	   2 Input    2 Bit       Adders := 1     
++---XORs : 
+	   2 Input     32 Bit         XORs := 1     
+	   4 Input      1 Bit         XORs := 1     
++---Registers : 
+	               32 Bit    Registers := 3     
+	               25 Bit    Registers := 315   
+	               21 Bit    Registers := 5     
+	               18 Bit    Registers := 2     
+	               17 Bit    Registers := 1     
+	               10 Bit    Registers := 2     
+	                8 Bit    Registers := 3     
+	                7 Bit    Registers := 1     
+	                4 Bit    Registers := 3     
+	                2 Bit    Registers := 1     
+	                1 Bit    Registers := 28    
++---RAMs : 
+	            1350K Bit	(76800 X 18 bit)          RAMs := 1     
++---ROMs : 
+	                    ROMs := 2     
++---Muxes : 
+	   3 Input 2500 Bit        Muxes := 3     
+	   2 Input 2500 Bit        Muxes := 3     
+	   2 Input   32 Bit        Muxes := 2     
+	   4 Input   25 Bit        Muxes := 1     
+	   2 Input   25 Bit        Muxes := 18    
+	   5 Input   25 Bit        Muxes := 3     
+	   2 Input   21 Bit        Muxes := 5     
+	   2 Input   19 Bit        Muxes := 1     
+	   2 Input   18 Bit        Muxes := 3     
+	   2 Input   17 Bit        Muxes := 1     
+	   2 Input   10 Bit        Muxes := 4     
+	   2 Input    9 Bit        Muxes := 3     
+	   3 Input    7 Bit        Muxes := 1     
+	   2 Input    7 Bit        Muxes := 1     
+	  20 Input    5 Bit        Muxes := 1     
+	   2 Input    4 Bit        Muxes := 5     
+	   6 Input    4 Bit        Muxes := 1     
+	   3 Input    3 Bit        Muxes := 1     
+	   2 Input    2 Bit        Muxes := 1     
+	   3 Input    1 Bit        Muxes := 9     
+	   2 Input    1 Bit        Muxes := 13    
+	   4 Input    1 Bit        Muxes := 3     
+	  20 Input    1 Bit        Muxes := 1     
+	  15 Input    1 Bit        Muxes := 10    
+	   5 Input    1 Bit        Muxes := 1     
+	   6 Input    1 Bit        Muxes := 1     
+---------------------------------------------------------------------------------
+Finished RTL Component Statistics 
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Part Resource Summary
+---------------------------------------------------------------------------------
+Part Resources:
+DSPs: 90 (col length:60)
+BRAMs: 100 (col length: RAMB18 60 RAMB36 30)
+---------------------------------------------------------------------------------
+Finished Part Resource Summary
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Cross Boundary and Area Optimization
+---------------------------------------------------------------------------------
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[17] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[16] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[15] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[14] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[13] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[12] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[11] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[10] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[9] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[8] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[7] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[6] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[5] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[4] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[3] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[2] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[1] driven by constant 0
+WARNING: [Synth 8-3917] design slime_top has port debug_trail_data[0] driven by constant 0
+WARNING: [Synth 8-7129] Port lfsr_state[31] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[30] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[29] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[28] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[27] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[26] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[25] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[24] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[23] in module agent_coordinator is either unconnected or has no load
+WARNING: [Synth 8-7129] Port lfsr_state[22] in module agent_coordinator is either unconnected or has no load
+INFO: [Common 17-14] Message 'Synth 8-7129' appears 100 times and further instances of the messages will be disabled. Use the Tcl command set_msg_config to change the current settings.
+WARNING: [Synth 8-3332] Sequential element (mem_reg_mux_sel_b_pos_0__6) is unused and will be removed from module trail_map_ram.
+WARNING: [Synth 8-3332] Sequential element (mem_reg_mux_sel_b_pos_1__6) is unused and will be removed from module trail_map_ram.
+DSP Report: Generating DSP u_mult/full_product, operation Mode is: A*B.
+DSP Report: operator u_mult/full_product is absorbed into DSP u_mult/full_product.
+DSP Report: operator u_mult/full_product is absorbed into DSP u_mult/full_product.
+DSP Report: Generating DSP u_mult/full_product, operation Mode is: (PCIN>>17)+A*B.
+DSP Report: operator u_mult/full_product is absorbed into DSP u_mult/full_product.
+DSP Report: operator u_mult/full_product is absorbed into DSP u_mult/full_product.
+INFO: [Synth 8-3886] merging instance 'u_processor/new_x_reg[23]' (FDCE) to 'u_processor/new_x_reg[22]'
+INFO: [Synth 8-3886] merging instance 'u_processor/new_x_reg[22]' (FDCE) to 'u_processor/new_x_reg[21]'
+INFO: [Synth 8-3886] merging instance 'u_processor/new_x_reg[21]' (FDCE) to 'u_processor/new_x_reg[24]'
+INFO: [Synth 8-3886] merging instance 'u_processor/new_y_reg[23]' (FDCE) to 'u_processor/new_y_reg[22]'
+INFO: [Synth 8-3886] merging instance 'u_processor/new_y_reg[22]' (FDCE) to 'u_processor/new_y_reg[21]'
+INFO: [Synth 8-3886] merging instance 'u_processor/new_y_reg[21]' (FDCE) to 'u_processor/new_y_reg[20]'
+INFO: [Synth 8-3886] merging instance 'u_processor/new_y_reg[20]' (FDCE) to 'u_processor/new_y_reg[24]'
+INFO: [Synth 8-3886] merging instance 'latched_x_out_reg[21]' (FDE) to 'latched_x_out_reg[22]'
+INFO: [Synth 8-3886] merging instance 'latched_x_out_reg[22]' (FDE) to 'latched_x_out_reg[23]'
+INFO: [Synth 8-3886] merging instance 'latched_x_out_reg[23]' (FDE) to 'latched_x_out_reg[24]'
+INFO: [Synth 8-3886] merging instance 'latched_y_out_reg[20]' (FDE) to 'latched_y_out_reg[21]'
+INFO: [Synth 8-3886] merging instance 'latched_y_out_reg[21]' (FDE) to 'latched_y_out_reg[22]'
+INFO: [Synth 8-3886] merging instance 'latched_y_out_reg[22]' (FDE) to 'latched_y_out_reg[23]'
+INFO: [Synth 8-3886] merging instance 'latched_y_out_reg[23]' (FDE) to 'latched_y_out_reg[24]'
+---------------------------------------------------------------------------------
+Finished Cross Boundary and Area Optimization : Time (s): cpu = 00:00:37 ; elapsed = 00:00:56 . Memory (MB): peak = 2566.648 ; gain = 842.801 ; free physical = 32506 ; free virtual = 56193
+---------------------------------------------------------------------------------
+ Sort Area is agent_coordinator__GB8 u_mult/full_product_0 : 0 0 : 3406 4462 : Used 1 time 0
+ Sort Area is agent_coordinator__GB8 u_mult/full_product_0 : 0 1 : 1056 4462 : Used 1 time 0
+WARNING: [Synth 8-5835] Resources of type BRAM have been overutilized. Used = 112, Available = 100. Will try to implement using LUT-RAM. 
+CRITICAL WARNING: [Synth 8-7048] Resources of type BRAM have been overutilized even after performing resource management. Used = 108, Available = 100. 
+ DSP resource Status: u_mult/full_product_0 0 4462 3406: Used 1 time : Accepted (1 < 90) uniquify 0 
+ DSP resource Status: u_mult/full_product_0 1 4462 1056: Used 1 time : Accepted (2 < 90) uniquify 0 
+---------------------------------------------------------------------------------
+Start ROM, RAM, DSP, Shift Register and Retiming Reporting
+---------------------------------------------------------------------------------
+
+ROM: Preliminary Mapping Report
++----------------+------------+---------------+----------------+
+|Module Name     | RTL Object | Depth x Width | Implemented As | 
++----------------+------------+---------------+----------------+
+|agent_processor | p_0_out    | 1024x25       | LUT            | 
+|agent_processor | p_0_out    | 1024x25       | LUT            | 
++----------------+------------+---------------+----------------+
+
+
+Block RAM: Preliminary Mapping Report (see note below)
++----------------+------------+------------------------+---+---+------------------------+---+---+------------------+--------+--------+
+|Module Name     | RTL Object | PORT A (Depth x Width) | W | R | PORT B (Depth x Width) | W | R | Ports driving FF | RAMB18 | RAMB36 | 
++----------------+------------+------------------------+---+---+------------------------+---+---+------------------+--------+--------+
+|i_0/u_trail_ram | mem_reg    | 75 K x 18(WRITE_FIRST) | W | R | 75 K x 18(WRITE_FIRST) |   | R | Port A and B     | 0      | 54     | 
++----------------+------------+------------------------+---+---+------------------------+---+---+------------------+--------+--------+
+
+Note: The table above is a preliminary report that shows the Block RAMs at the current stage of the synthesis flow. Some Block RAMs may be reimplemented as non Block RAM primitives later in the synthesis flow. Multiple instantiated Block RAMs are reported only once. 
+
+DSP: Preliminary Mapping Report (see note below. The ' indicates corresponding REG is set)
++-----------------+----------------+--------+--------+--------+--------+--------+------+------+------+------+-------+------+------+
+|Module Name      | DSP Mapping    | A Size | B Size | C Size | D Size | P Size | AREG | BREG | CREG | DREG | ADREG | MREG | PREG | 
++-----------------+----------------+--------+--------+--------+--------+--------+------+------+------+------+-------+------+------+
+|fixed_point_mult | A*B            | 25     | 18     | -      | -      | 48     | 0    | 0    | -    | -    | -     | 0    | 0    | 
+|fixed_point_mult | (PCIN>>17)+A*B | 20     | 8      | -      | -      | 20     | 0    | 0    | -    | -    | -     | 0    | 0    | 
++-----------------+----------------+--------+--------+--------+--------+--------+------+------+------+------+-------+------+------+
+
+Note: The table above is a preliminary report that shows the DSPs inferred at the current stage of the synthesis flow. Some DSP may be reimplemented as non DSP primitives later in the synthesis flow. Multiple instantiated DSPs are reported only once.
+---------------------------------------------------------------------------------
+Finished ROM, RAM, DSP, Shift Register and Retiming Reporting
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Applying XDC Timing Constraints
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Applying XDC Timing Constraints : Time (s): cpu = 00:01:29 ; elapsed = 00:01:11 . Memory (MB): peak = 2665.734 ; gain = 941.887 ; free physical = 34339 ; free virtual = 58059
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Timing Optimization
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Timing Optimization : Time (s): cpu = 00:01:45 ; elapsed = 00:01:27 . Memory (MB): peak = 2845.508 ; gain = 1121.660 ; free physical = 34154 ; free virtual = 57891
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start ROM, RAM, DSP, Shift Register and Retiming Reporting
+---------------------------------------------------------------------------------
+
+Block RAM: Final Mapping Report
++----------------+------------+------------------------+---+---+------------------------+---+---+------------------+--------+--------+
+|Module Name     | RTL Object | PORT A (Depth x Width) | W | R | PORT B (Depth x Width) | W | R | Ports driving FF | RAMB18 | RAMB36 | 
++----------------+------------+------------------------+---+---+------------------------+---+---+------------------+--------+--------+
+|i_0/u_trail_ram | mem_reg    | 75 K x 18(WRITE_FIRST) | W | R | 75 K x 18(WRITE_FIRST) |   | R | Port A and B     | 0      | 54     | 
++----------------+------------+------------------------+---+---+------------------------+---+---+------------------+--------+--------+
+
+---------------------------------------------------------------------------------
+Finished ROM, RAM, DSP, Shift Register and Retiming Reporting
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Technology Mapping
+---------------------------------------------------------------------------------
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_1 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_2 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_3 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_4 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_4 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_5 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_5 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_6 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_6 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_7 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_7 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_8 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_9 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_10 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_11 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_12 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_13 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_14 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_15 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_16 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_17 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_0__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_1__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_2__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_3__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_4__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_5__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_6__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_7__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_8__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_9__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_10__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_11__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_12__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_13__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_14__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_15__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_16__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance i_0/u_trail_ram/mem_reg_1_17__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+---------------------------------------------------------------------------------
+Finished Technology Mapping : Time (s): cpu = 00:01:55 ; elapsed = 00:01:37 . Memory (MB): peak = 2857.434 ; gain = 1133.586 ; free physical = 33495 ; free virtual = 57184
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start IO Insertion
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Flattening Before IO Insertion
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Flattening Before IO Insertion
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Final Netlist Cleanup
+---------------------------------------------------------------------------------
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_1 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_2 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_3 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_4 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_4 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_5 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_5 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_6 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_6 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_7 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_7 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_8 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_9 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_10 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_11 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_12 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_13 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_14 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_15 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_16 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_17 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_0__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_1__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_2__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_3__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_4__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_5__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_6__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_7__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_8__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_9__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_10__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_11__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_12__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_13__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_14__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_15__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_16__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+INFO: [Synth 8-7052] The timing for the instance u_trail_ram/mem_reg_1_17__0 (implemented as a Block RAM) might be sub-optimal as no optional output register could be merged into the ram block. Providing additional output register may help in improving timing.
+---------------------------------------------------------------------------------
+Finished Final Netlist Cleanup
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished IO Insertion : Time (s): cpu = 00:02:01 ; elapsed = 00:01:44 . Memory (MB): peak = 2876.324 ; gain = 1152.477 ; free physical = 33485 ; free virtual = 57205
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Renaming Generated Instances
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Renaming Generated Instances : Time (s): cpu = 00:02:01 ; elapsed = 00:01:44 . Memory (MB): peak = 2876.324 ; gain = 1152.477 ; free physical = 33477 ; free virtual = 57197
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Rebuilding User Hierarchy
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Rebuilding User Hierarchy : Time (s): cpu = 00:02:04 ; elapsed = 00:01:46 . Memory (MB): peak = 2876.324 ; gain = 1152.477 ; free physical = 33463 ; free virtual = 57182
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Renaming Generated Ports
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Renaming Generated Ports : Time (s): cpu = 00:02:04 ; elapsed = 00:01:46 . Memory (MB): peak = 2876.324 ; gain = 1152.477 ; free physical = 33463 ; free virtual = 57182
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Handling Custom Attributes
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Handling Custom Attributes : Time (s): cpu = 00:02:08 ; elapsed = 00:01:51 . Memory (MB): peak = 2898.137 ; gain = 1174.289 ; free physical = 33478 ; free virtual = 57198
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Renaming Generated Nets
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Renaming Generated Nets : Time (s): cpu = 00:02:08 ; elapsed = 00:01:51 . Memory (MB): peak = 2898.137 ; gain = 1174.289 ; free physical = 33478 ; free virtual = 57198
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Writing Synthesis Report
+---------------------------------------------------------------------------------
+
+DSP Final Report (the ' indicates corresponding REG is set)
++-----------------+--------------+--------+--------+--------+--------+--------+------+------+------+------+-------+------+------+
+|Module Name      | DSP Mapping  | A Size | B Size | C Size | D Size | P Size | AREG | BREG | CREG | DREG | ADREG | MREG | PREG | 
++-----------------+--------------+--------+--------+--------+--------+--------+------+------+------+------+-------+------+------+
+|fixed_point_mult | A*B          | 16     | 17     | -      | -      | 48     | 0    | 0    | -    | -    | -     | 0    | 0    | 
+|fixed_point_mult | PCIN>>17+A*B | 0      | 18     | -      | -      | 20     | 0    | 0    | -    | -    | -     | 0    | 0    | 
++-----------------+--------------+--------+--------+--------+--------+--------+------+------+------+------+-------+------+------+
+
+
+Report BlackBoxes: 
++-+--------------+----------+
+| |BlackBox name |Instances |
++-+--------------+----------+
++-+--------------+----------+
+
+Report Cell Usage: 
++------+---------+------+
+|      |Cell     |Count |
++------+---------+------+
+|1     |BUFG     |     2|
+|2     |CARRY4   |   333|
+|3     |DSP48E1  |     2|
+|4     |LUT1     |   189|
+|5     |LUT2     |   363|
+|6     |LUT3     |  2171|
+|7     |LUT4     |   430|
+|8     |LUT5     |  3976|
+|9     |LUT6     | 25412|
+|10    |MUXF7    |  2852|
+|11    |MUXF8    |  1350|
+|12    |RAMB36E1 |    54|
+|15    |FDRE     |  7603|
+|16    |FDSE     |   550|
+|17    |IBUF     |    46|
+|18    |OBUF     |    74|
++------+---------+------+
+---------------------------------------------------------------------------------
+Finished Writing Synthesis Report : Time (s): cpu = 00:02:08 ; elapsed = 00:01:51 . Memory (MB): peak = 2898.137 ; gain = 1174.289 ; free physical = 33478 ; free virtual = 57198
+---------------------------------------------------------------------------------
+Synthesis finished with 0 errors, 1 critical warnings and 103 warnings.
+Synthesis Optimization Runtime : Time (s): cpu = 00:02:05 ; elapsed = 00:01:53 . Memory (MB): peak = 2902.051 ; gain = 1072.703 ; free physical = 39325 ; free virtual = 63045
+Synthesis Optimization Complete : Time (s): cpu = 00:02:08 ; elapsed = 00:01:56 . Memory (MB): peak = 2902.051 ; gain = 1178.203 ; free physical = 39332 ; free virtual = 63045
+INFO: [Project 1-571] Translating synthesized netlist
+Netlist sorting complete. Time (s): cpu = 00:00:00.24 ; elapsed = 00:00:00.23 . Memory (MB): peak = 2902.051 ; gain = 0.000 ; free physical = 39335 ; free virtual = 63047
+INFO: [Netlist 29-17] Analyzing 4591 Unisim elements for replacement
+INFO: [Netlist 29-28] Unisim Transformation completed in 0 CPU seconds
+WARNING: [Netlist 29-101] Netlist 'slime_top' is not ideal for floorplanning, since the cellview 'agent_coordinator' contains a large number of primitives.  Please consider enabling hierarchy in synthesis if you want to do floorplanning.
+INFO: [Project 1-570] Preparing netlist for logic optimization
+INFO: [Opt 31-138] Pushed 0 inverter(s) to 0 load pin(s).
+Netlist sorting complete. Time (s): cpu = 00:00:00.01 ; elapsed = 00:00:00 . Memory (MB): peak = 2946.160 ; gain = 0.000 ; free physical = 39342 ; free virtual = 63055
+INFO: [Project 1-111] Unisim Transformation Summary:
+No Unisim elements were transformed.
+
+Synth Design complete | Checksum: d5f4b769
+INFO: [Common 17-83] Releasing license: Synthesis
+144 Infos, 173 Warnings, 1 Critical Warnings and 0 Errors encountered.
+synth_design completed successfully
+synth_design: Time (s): cpu = 00:02:16 ; elapsed = 00:02:04 . Memory (MB): peak = 2946.195 ; gain = 1326.684 ; free physical = 39343 ; free virtual = 63055
+INFO: [Common 17-2834] synth_design peak Physical Memory [PSS] (MB): overall = 8927.626; main = 2007.780; forked = 7439.785
+INFO: [Common 17-2834] synth_design peak Virtual Memory [VSS] (MB): overall = 17988.086; main = 2946.164; forked = 15417.348
+INFO: [runtcl-6] Synthesis results are not added to the cache due to CRITICAL_WARNING
+Write ShapeDB Complete: Time (s): cpu = 00:00:00.07 ; elapsed = 00:00:00.02 . Memory (MB): peak = 2970.172 ; gain = 0.000 ; free physical = 39343 ; free virtual = 63057
+INFO: [Common 17-1381] The checkpoint '/home/reson/SlimeSimulator/rtl/vivado_project/slime_simulator.runs/synth_1/slime_top.dcp' has been generated.
+INFO: [Vivado 12-24828] Executing command : report_utilization -file slime_top_utilization_synth.rpt -pb slime_top_utilization_synth.pb
+INFO: [Common 17-206] Exiting Vivado at Tue Dec  9 09:22:57 2025...

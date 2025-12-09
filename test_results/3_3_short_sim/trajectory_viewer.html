@@ -1,0 +1,2270 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Agent Trajectory Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e1e1e;
+            color: #e0e0e0;
+            display: flex;
+            height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            width: 100%;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .canvas-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        canvas {
+            border: 2px solid #444;
+            background: #000;
+            flex: 1;
+            border-radius: 4px;
+        }
+
+        .controls-panel {
+            width: 300px;
+            background: #2d2d2d;
+            border-radius: 4px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+        }
+
+        .control-section {
+            border-bottom: 1px solid #444;
+            padding-bottom: 15px;
+        }
+
+        .control-section:last-child {
+            border-bottom: none;
+        }
+
+        h3 {
+            font-size: 14px;
+            color: #61dafb;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .step-info {
+            background: #3d3d3d;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .step-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #61dafb;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            flex: 1;
+            padding: 8px 12px;
+            background: #0ea5e9;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #0284c7;
+        }
+
+        button:active {
+            background: #0369a1;
+        }
+
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .checkbox-item:hover {
+            background: #3d3d3d;
+        }
+
+        input[type="checkbox"] {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+        }
+
+        .label {
+            flex: 1;
+            font-size: 13px;
+        }
+
+        .color-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+
+        .python-color {
+            background: #ff4444;
+        }
+
+        .rtl-color {
+            background: #00ccff;
+        }
+
+        .stats {
+            background: #3d3d3d;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: monospace;
+            line-height: 1.6;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .stat-label {
+            color: #aaa;
+        }
+
+        .stat-value {
+            color: #61dafb;
+            font-weight: bold;
+        }
+
+        .keyboard-hint {
+            background: #3d3d3d;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #aaa;
+            line-height: 1.6;
+        }
+
+        .keyboard-hint code {
+            background: #000;
+            padding: 2px 4px;
+            border-radius: 2px;
+            color: #61dafb;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="canvas-panel">
+            <canvas id="canvas" width="640" height="480"></canvas>
+        </div>
+
+        <div class="controls-panel">
+            <div class="control-section">
+                <h3>Step Navigation</h3>
+                <div class="step-info">
+                    <div class="step-number" id="stepNumber">0</div>
+                    <div style="color: #aaa; font-size: 12px; margin-top: 5px;">
+                        <span id="stepLabel">Step</span> / <span id="totalSteps">5</span>
+                    </div>
+                </div>
+                <div class="button-group" style="margin-top: 10px;">
+                    <button onclick="previousStep()">&larr; Previous</button>
+                    <button onclick="nextStep()">Next &rarr;</button>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Agent Display</h3>
+                <div class="checkbox-group">
+                    <div class="checkbox-item" onclick="togglePython()">
+                        <input type="checkbox" id="showPython" checked>
+                        <div class="color-indicator python-color"></div>
+                        <label class="label">Show Python</label>
+                    </div>
+                    <div class="checkbox-item" onclick="toggleRTL()">
+                        <input type="checkbox" id="showRTL" checked>
+                        <div class="color-indicator rtl-color"></div>
+                        <label class="label">Show RTL</label>
+                    </div>
+                    <div class="checkbox-item" onclick="toggleVectors()">
+                        <input type="checkbox" id="showVectors" checked>
+                        <div style="width: 12px; height: 12px; border: 1px solid #aaa;"></div>
+                        <label class="label">Show Vectors</label>
+                    </div>
+                    <div class="checkbox-item" onclick="toggleSpawnCircle()">
+                        <input type="checkbox" id="showSpawnCircle" checked>
+                        <label class="label">Show Spawn Circle</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Statistics</h3>
+                <div class="stats">
+                    <div class="stat-row">
+                        <span class="stat-label">Agents:</span>
+                        <span class="stat-value" id="agentCount">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Mean X Diff:</span>
+                        <span class="stat-value" id="meanXDiff">0.00</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Mean Y Diff:</span>
+                        <span class="stat-value" id="meanYDiff">0.00</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Mean Angle Diff:</span>
+                        <span class="stat-value" id="meanAngleDiff">0.00°</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Keyboard Shortcuts</h3>
+                <div class="keyboard-hint">
+                    <div><code>←</code> / <code>→</code> Navigate steps</div>
+                    <div><code>P</code> Toggle Python</div>
+                    <div><code>R</code> Toggle RTL</div>
+                    <div><code>V</code> Toggle vectors</div>
+                    <div><code>C</code> Toggle circle</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const WIDTH = 320;
+        const HEIGHT = 240;
+        const SCALE = 2;  // Canvas scale for clarity
+        const SPAWN_RADIUS = Math.min(WIDTH, HEIGHT) * 0.4;
+
+        let trajectoryData = {
+  "0": [
+    {
+      "step": 0,
+      "agent_id": 0,
+      "python_x": 256.0,
+      "python_y": 120.0,
+      "python_angle": 180.00051,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 256.0,
+      "y_diff": 120.0,
+      "distance": 282.72955275315667,
+      "angle_diff": 180.00051,
+      "python_angle_deg": 180.00051,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 0,
+      "agent_id": 1,
+      "python_x": 237.8125,
+      "python_y": 176.2266,
+      "python_angle": 216.006208,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 237.8125,
+      "y_diff": 176.2266,
+      "distance": 295.99087773749045,
+      "angle_diff": 216.006208,
+      "python_angle_deg": 216.006208,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 0,
+      "agent_id": 2,
+      "python_x": 190.1172,
+      "python_y": 211.1484,
+      "python_angle": 251.997917,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 190.1172,
+      "y_diff": 211.1484,
+      "distance": 284.12707818580054,
+      "angle_diff": 251.997917,
+      "python_angle_deg": 251.997917,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 0,
+      "agent_id": 3,
+      "python_x": 130.4453,
+      "python_y": 211.3359,
+      "python_angle": 288.003614,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 130.4453,
+      "y_diff": 211.3359,
+      "distance": 248.35224766629352,
+      "angle_diff": 288.003614,
+      "python_angle_deg": 288.003614,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 0,
+      "agent_id": 4,
+      "python_x": 82.5391,
+      "python_y": 176.7188,
+      "python_angle": 323.995324,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 82.5391,
+      "y_diff": 176.7188,
+      "distance": 195.0441932031046,
+      "angle_diff": 323.995324,
+      "python_angle_deg": 323.995324,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 0,
+      "agent_id": 5,
+      "python_x": 64.0,
+      "python_y": 120.0,
+      "python_angle": 0.0,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 64.0,
+      "y_diff": 120.0,
+      "distance": 136.0,
+      "angle_diff": 0.0,
+      "python_angle_deg": 0.0,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 0,
+      "agent_id": 6,
+      "python_x": 82.1875,
+      "python_y": 63.7734,
+      "python_angle": 36.005697,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 82.1875,
+      "y_diff": 63.7734,
+      "distance": 104.02803325935754,
+      "angle_diff": 36.005697,
+      "python_angle_deg": 36.005697,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 0,
+      "agent_id": 7,
+      "python_x": 129.8828,
+      "python_y": 28.8516,
+      "python_angle": 71.997407,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 129.8828,
+      "y_diff": 28.8516,
+      "distance": 133.0486999500559,
+      "angle_diff": 71.997407,
+      "python_angle_deg": 71.997407,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 0,
+      "agent_id": 8,
+      "python_x": 189.5547,
+      "python_y": 28.6641,
+      "python_angle": 108.003104,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 189.5547,
+      "y_diff": 28.6641,
+      "distance": 191.70971524912346,
+      "angle_diff": 108.003104,
+      "python_angle_deg": 108.003104,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 0,
+      "agent_id": 9,
+      "python_x": 237.4609,
+      "python_y": 63.2812,
+      "python_angle": 143.994813,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 237.4609,
+      "y_diff": 63.2812,
+      "distance": 245.74822339591796,
+      "angle_diff": 143.994813,
+      "python_angle_deg": 143.994813,
+      "rtl_angle_deg": 0.0
+    }
+  ],
+  "1": [
+    {
+      "step": 1,
+      "agent_id": 0,
+      "python_x": 255.0,
+      "python_y": 120.0,
+      "python_angle": 180.00051,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 255.0,
+      "y_diff": 120.0,
+      "distance": 281.82441342083905,
+      "angle_diff": 180.00051,
+      "python_angle_deg": 180.00051,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 1,
+      "agent_id": 1,
+      "python_x": 237.002,
+      "python_y": 175.6409,
+      "python_angle": 216.006208,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 237.002,
+      "y_diff": 175.6409,
+      "distance": 294.9909723310359,
+      "angle_diff": 216.006208,
+      "python_angle_deg": 216.006208,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 1,
+      "agent_id": 2,
+      "python_x": 189.8035,
+      "python_y": 210.199,
+      "python_angle": 251.997917,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 189.8035,
+      "y_diff": 210.199,
+      "distance": 283.2119139677037,
+      "angle_diff": 251.997917,
+      "python_angle_deg": 251.997917,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 1,
+      "agent_id": 3,
+      "python_x": 130.7532,
+      "python_y": 210.3845,
+      "python_angle": 288.003614,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 130.7532,
+      "y_diff": 210.3845,
+      "distance": 247.70554525583393,
+      "angle_diff": 288.003614,
+      "python_angle_deg": 288.003614,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 1,
+      "agent_id": 4,
+      "python_x": 83.3459,
+      "python_y": 176.1279,
+      "python_angle": 323.995324,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 83.3459,
+      "y_diff": 176.1279,
+      "distance": 194.85270386941005,
+      "angle_diff": 323.995324,
+      "python_angle_deg": 323.995324,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 1,
+      "agent_id": 5,
+      "python_x": 65.0,
+      "python_y": 120.0,
+      "python_angle": 0.0,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 65.0,
+      "y_diff": 120.0,
+      "distance": 136.4734406395618,
+      "angle_diff": 0.0,
+      "python_angle_deg": 0.0,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 1,
+      "agent_id": 6,
+      "python_x": 82.998,
+      "python_y": 64.3591,
+      "python_angle": 36.005697,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 82.998,
+      "y_diff": 64.3591,
+      "distance": 105.0274333534339,
+      "angle_diff": 36.005697,
+      "python_angle_deg": 36.005697,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 1,
+      "agent_id": 7,
+      "python_x": 130.1965,
+      "python_y": 29.801,
+      "python_angle": 71.997407,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 130.1965,
+      "y_diff": 29.801,
+      "distance": 133.5635736765455,
+      "angle_diff": 71.997407,
+      "python_angle_deg": 71.997407,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 1,
+      "agent_id": 8,
+      "python_x": 189.2468,
+      "python_y": 29.6155,
+      "python_angle": 108.003104,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 189.2468,
+      "y_diff": 29.6155,
+      "distance": 191.5500695653489,
+      "angle_diff": 108.003104,
+      "python_angle_deg": 108.003104,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 1,
+      "agent_id": 9,
+      "python_x": 236.6541,
+      "python_y": 63.8721,
+      "python_angle": 143.994813,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 236.6541,
+      "y_diff": 63.8721,
+      "distance": 245.12202717263088,
+      "angle_diff": 143.994813,
+      "python_angle_deg": 143.994813,
+      "rtl_angle_deg": 0.0
+    }
+  ],
+  "2": [
+    {
+      "step": 2,
+      "agent_id": 0,
+      "python_x": 254.0,
+      "python_y": 120.0,
+      "python_angle": 180.00051,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 254.0,
+      "y_diff": 120.0,
+      "distance": 280.9199174141983,
+      "angle_diff": 180.00051,
+      "python_angle_deg": 180.00051,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 2,
+      "agent_id": 1,
+      "python_x": 236.1914,
+      "python_y": 175.0552,
+      "python_angle": 216.006208,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 236.1914,
+      "y_diff": 175.0552,
+      "distance": 293.990987074434,
+      "angle_diff": 216.006208,
+      "python_angle_deg": 216.006208,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 2,
+      "agent_id": 2,
+      "python_x": 189.4897,
+      "python_y": 209.2495,
+      "python_angle": 251.997917,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 189.4897,
+      "y_diff": 209.2495,
+      "distance": 282.2971832242398,
+      "angle_diff": 251.997917,
+      "python_angle_deg": 251.997917,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 2,
+      "agent_id": 3,
+      "python_x": 131.061,
+      "python_y": 209.4331,
+      "python_angle": 288.003614,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 131.061,
+      "y_diff": 209.4331,
+      "distance": 247.0611444493245,
+      "angle_diff": 288.003614,
+      "python_angle_deg": 288.003614,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 2,
+      "agent_id": 4,
+      "python_x": 84.1528,
+      "python_y": 175.5371,
+      "python_angle": 323.995324,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 84.1528,
+      "y_diff": 175.5371,
+      "distance": 194.6662970938986,
+      "angle_diff": 323.995324,
+      "python_angle_deg": 323.995324,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 2,
+      "agent_id": 5,
+      "python_x": 66.0,
+      "python_y": 120.0,
+      "python_angle": 0.0,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 66.0,
+      "y_diff": 120.0,
+      "distance": 136.95254652615992,
+      "angle_diff": 0.0,
+      "python_angle_deg": 0.0,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 2,
+      "agent_id": 6,
+      "python_x": 83.8086,
+      "python_y": 64.9448,
+      "python_angle": 36.005697,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 83.8086,
+      "y_diff": 64.9448,
+      "distance": 106.0269233779798,
+      "angle_diff": 36.005697,
+      "python_angle_deg": 36.005697,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 2,
+      "agent_id": 7,
+      "python_x": 130.5103,
+      "python_y": 30.7505,
+      "python_angle": 71.997407,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 130.5103,
+      "y_diff": 30.7505,
+      "distance": 134.08404698673144,
+      "angle_diff": 71.997407,
+      "python_angle_deg": 71.997407,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 2,
+      "agent_id": 8,
+      "python_x": 188.939,
+      "python_y": 30.5669,
+      "python_angle": 108.003104,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 188.939,
+      "y_diff": 30.5669,
+      "distance": 191.39561409972276,
+      "angle_diff": 108.003104,
+      "python_angle_deg": 108.003104,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 2,
+      "agent_id": 9,
+      "python_x": 235.8472,
+      "python_y": 64.4629,
+      "python_angle": 143.994813,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 235.8472,
+      "y_diff": 64.4629,
+      "distance": 244.4981947259529,
+      "angle_diff": 143.994813,
+      "python_angle_deg": 143.994813,
+      "rtl_angle_deg": 0.0
+    }
+  ],
+  "3": [
+    {
+      "step": 3,
+      "agent_id": 0,
+      "python_x": 253.0,
+      "python_y": 120.0,
+      "python_angle": 180.00051,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 253.0,
+      "y_diff": 120.0,
+      "distance": 280.0160709673643,
+      "angle_diff": 180.00051,
+      "python_angle_deg": 180.00051,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 3,
+      "agent_id": 1,
+      "python_x": 235.3809,
+      "python_y": 174.4695,
+      "python_angle": 216.006208,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 235.3809,
+      "y_diff": 174.4695,
+      "distance": 292.9910826545068,
+      "angle_diff": 216.006208,
+      "python_angle_deg": 216.006208,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 3,
+      "agent_id": 2,
+      "python_x": 189.176,
+      "python_y": 208.3,
+      "python_angle": 251.997917,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 189.176,
+      "y_diff": 208.3,
+      "distance": 281.38310001846236,
+      "angle_diff": 251.997917,
+      "python_angle_deg": 251.997917,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 3,
+      "agent_id": 3,
+      "python_x": 131.3689,
+      "python_y": 208.4817,
+      "python_angle": 288.003614,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 131.3689,
+      "y_diff": 208.4817,
+      "distance": 246.41916955078798,
+      "angle_diff": 288.003614,
+      "python_angle_deg": 288.003614,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 3,
+      "agent_id": 4,
+      "python_x": 84.9597,
+      "python_y": 174.9463,
+      "python_angle": 323.995324,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 84.9597,
+      "y_diff": 174.9463,
+      "distance": 194.48485418607794,
+      "angle_diff": 323.995324,
+      "python_angle_deg": 323.995324,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 3,
+      "agent_id": 5,
+      "python_x": 67.0,
+      "python_y": 120.0,
+      "python_angle": 0.0,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 67.0,
+      "y_diff": 120.0,
+      "distance": 137.43725841270262,
+      "angle_diff": 0.0,
+      "python_angle_deg": 0.0,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 3,
+      "agent_id": 6,
+      "python_x": 84.6191,
+      "python_y": 65.5305,
+      "python_angle": 36.005697,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 84.6191,
+      "y_diff": 65.5305,
+      "distance": 107.02634495795883,
+      "angle_diff": 36.005697,
+      "python_angle_deg": 36.005697,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 3,
+      "agent_id": 7,
+      "python_x": 130.824,
+      "python_y": 31.7,
+      "python_angle": 71.997407,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 130.824,
+      "y_diff": 31.7,
+      "distance": 134.60983981864032,
+      "angle_diff": 71.997407,
+      "python_angle_deg": 71.997407,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 3,
+      "agent_id": 8,
+      "python_x": 188.6311,
+      "python_y": 31.5183,
+      "python_angle": 108.003104,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 188.6311,
+      "y_diff": 31.5183,
+      "distance": 191.24616367943176,
+      "angle_diff": 108.003104,
+      "python_angle_deg": 108.003104,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 3,
+      "agent_id": 9,
+      "python_x": 235.0403,
+      "python_y": 65.0537,
+      "python_angle": 143.994813,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 235.0403,
+      "y_diff": 65.0537,
+      "distance": 243.8768675126446,
+      "angle_diff": 143.994813,
+      "python_angle_deg": 143.994813,
+      "rtl_angle_deg": 0.0
+    }
+  ],
+  "4": [
+    {
+      "step": 4,
+      "agent_id": 0,
+      "python_x": 252.0,
+      "python_y": 120.0,
+      "python_angle": 180.00051,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 252.0,
+      "y_diff": 120.0,
+      "distance": 279.1128803907122,
+      "angle_diff": 180.00051,
+      "python_angle_deg": 180.00051,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 4,
+      "agent_id": 1,
+      "python_x": 234.5703,
+      "python_y": 173.8838,
+      "python_angle": 216.006208,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 234.5703,
+      "y_diff": 173.8838,
+      "distance": 291.99109839947175,
+      "angle_diff": 216.006208,
+      "python_angle_deg": 216.006208,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 4,
+      "agent_id": 2,
+      "python_x": 188.8623,
+      "python_y": 207.3506,
+      "python_angle": 251.997917,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 188.8623,
+      "y_diff": 207.3506,
+      "distance": 280.4696769379,
+      "angle_diff": 251.997917,
+      "python_angle_deg": 251.997917,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 4,
+      "agent_id": 3,
+      "python_x": 131.6768,
+      "python_y": 207.5303,
+      "python_angle": 288.003614,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 131.6768,
+      "y_diff": 207.5303,
+      "distance": 245.7795863702476,
+      "angle_diff": 288.003614,
+      "python_angle_deg": 288.003614,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 4,
+      "agent_id": 4,
+      "python_x": 85.7666,
+      "python_y": 174.3555,
+      "python_angle": 323.995324,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 85.7666,
+      "y_diff": 174.3555,
+      "distance": 194.30838905155383,
+      "angle_diff": 323.995324,
+      "python_angle_deg": 323.995324,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 4,
+      "agent_id": 5,
+      "python_x": 68.0,
+      "python_y": 120.0,
+      "python_angle": 0.0,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 68.0,
+      "y_diff": 120.0,
+      "distance": 137.92751719653333,
+      "angle_diff": 0.0,
+      "python_angle_deg": 0.0,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 4,
+      "agent_id": 6,
+      "python_x": 85.4297,
+      "python_y": 66.1162,
+      "python_angle": 36.005697,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 85.4297,
+      "y_diff": 66.1162,
+      "distance": 108.02585590741691,
+      "angle_diff": 36.005697,
+      "python_angle_deg": 36.005697,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 4,
+      "agent_id": 7,
+      "python_x": 131.1377,
+      "python_y": 32.6494,
+      "python_angle": 71.997407,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 131.1377,
+      "y_diff": 32.6494,
+      "distance": 135.14096226403746,
+      "angle_diff": 71.997407,
+      "python_angle_deg": 71.997407,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 4,
+      "agent_id": 8,
+      "python_x": 188.3232,
+      "python_y": 32.4697,
+      "python_angle": 108.003104,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 188.3232,
+      "y_diff": 32.4697,
+      "distance": 191.1018290763592,
+      "angle_diff": 108.003104,
+      "python_angle_deg": 108.003104,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 4,
+      "agent_id": 9,
+      "python_x": 234.2334,
+      "python_y": 65.6445,
+      "python_angle": 143.994813,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 234.2334,
+      "y_diff": 65.6445,
+      "distance": 243.25806472922946,
+      "angle_diff": 143.994813,
+      "python_angle_deg": 143.994813,
+      "rtl_angle_deg": 0.0
+    }
+  ],
+  "5": [
+    {
+      "step": 5,
+      "agent_id": 0,
+      "python_x": 251.0,
+      "python_y": 120.0,
+      "python_angle": 180.00051,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 251.0,
+      "y_diff": 120.0,
+      "distance": 278.2103520719529,
+      "angle_diff": 180.00051,
+      "python_angle_deg": 180.00051,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 5,
+      "agent_id": 1,
+      "python_x": 233.7598,
+      "python_y": 173.2981,
+      "python_angle": 216.006208,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 233.7598,
+      "y_diff": 173.2981,
+      "distance": 290.9911949864635,
+      "angle_diff": 216.006208,
+      "python_angle_deg": 216.006208,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 5,
+      "agent_id": 2,
+      "python_x": 188.5486,
+      "python_y": 206.4011,
+      "python_angle": 251.997917,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 188.5486,
+      "y_diff": 206.4011,
+      "distance": 279.55677177126296,
+      "angle_diff": 251.997917,
+      "python_angle_deg": 251.997917,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 5,
+      "agent_id": 3,
+      "python_x": 131.9846,
+      "python_y": 206.5789,
+      "python_angle": 288.003614,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 131.9846,
+      "y_diff": 206.5789,
+      "distance": 245.14235978787917,
+      "angle_diff": 288.003614,
+      "python_angle_deg": 288.003614,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 5,
+      "agent_id": 4,
+      "python_x": 86.5735,
+      "python_y": 173.7646,
+      "python_angle": 323.995324,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 86.5735,
+      "y_diff": 173.7646,
+      "distance": 194.13682575804623,
+      "angle_diff": 323.995324,
+      "python_angle_deg": 323.995324,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 5,
+      "agent_id": 5,
+      "python_x": 69.0,
+      "python_y": 120.0,
+      "python_angle": 0.0,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 69.0,
+      "y_diff": 120.0,
+      "distance": 138.42326394071193,
+      "angle_diff": 0.0,
+      "python_angle_deg": 0.0,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 5,
+      "agent_id": 6,
+      "python_x": 86.2402,
+      "python_y": 66.7019,
+      "python_angle": 36.005697,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 86.2402,
+      "y_diff": 66.7019,
+      "distance": 109.0252977966582,
+      "angle_diff": 36.005697,
+      "python_angle_deg": 36.005697,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 5,
+      "agent_id": 7,
+      "python_x": 131.4514,
+      "python_y": 33.5989,
+      "python_angle": 71.997407,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 131.4514,
+      "y_diff": 33.5989,
+      "distance": 135.67739916128258,
+      "angle_diff": 71.997407,
+      "python_angle_deg": 71.997407,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 5,
+      "agent_id": 8,
+      "python_x": 188.0154,
+      "python_y": 33.4211,
+      "python_angle": 108.003104,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 188.0154,
+      "y_diff": 33.4211,
+      "distance": 190.96272034711382,
+      "angle_diff": 108.003104,
+      "python_angle_deg": 108.003104,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 5,
+      "agent_id": 9,
+      "python_x": 233.4265,
+      "python_y": 66.2354,
+      "python_angle": 143.994813,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 233.4265,
+      "y_diff": 66.2354,
+      "distance": 242.6418329872448,
+      "angle_diff": 143.994813,
+      "python_angle_deg": 143.994813,
+      "rtl_angle_deg": 0.0
+    }
+  ],
+  "6": [
+    {
+      "step": 6,
+      "agent_id": 0,
+      "python_x": 250.0,
+      "python_y": 120.0,
+      "python_angle": 180.00051,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 250.0,
+      "y_diff": 120.0,
+      "distance": 277.308492477241,
+      "angle_diff": 180.00051,
+      "python_angle_deg": 180.00051,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 6,
+      "agent_id": 1,
+      "python_x": 232.9492,
+      "python_y": 172.7124,
+      "python_angle": 216.006208,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 232.9492,
+      "y_diff": 172.7124,
+      "distance": 289.99121175373574,
+      "angle_diff": 216.006208,
+      "python_angle_deg": 216.006208,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 6,
+      "agent_id": 2,
+      "python_x": 188.2349,
+      "python_y": 205.4517,
+      "python_angle": 251.997917,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 188.2349,
+      "y_diff": 205.4517,
+      "distance": 278.6445380962993,
+      "angle_diff": 251.997917,
+      "python_angle_deg": 251.997917,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 6,
+      "agent_id": 3,
+      "python_x": 132.2925,
+      "python_y": 205.6274,
+      "python_angle": 288.003614,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 132.2925,
+      "y_diff": 205.6274,
+      "distance": 244.5075319637618,
+      "angle_diff": 288.003614,
+      "python_angle_deg": 288.003614,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 6,
+      "agent_id": 4,
+      "python_x": 87.3804,
+      "python_y": 173.1738,
+      "python_angle": 323.995324,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 87.3804,
+      "y_diff": 173.1738,
+      "distance": 193.9703567831951,
+      "angle_diff": 323.995324,
+      "python_angle_deg": 323.995324,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 6,
+      "agent_id": 5,
+      "python_x": 70.0,
+      "python_y": 120.0,
+      "python_angle": 0.0,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 70.0,
+      "y_diff": 120.0,
+      "distance": 138.92443989449805,
+      "angle_diff": 0.0,
+      "python_angle_deg": 0.0,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 6,
+      "agent_id": 6,
+      "python_x": 87.0508,
+      "python_y": 67.2876,
+      "python_angle": 36.005697,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 87.0508,
+      "y_diff": 67.2876,
+      "distance": 110.02482853610816,
+      "angle_diff": 36.005697,
+      "python_angle_deg": 36.005697,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 6,
+      "agent_id": 7,
+      "python_x": 131.7651,
+      "python_y": 34.5483,
+      "python_angle": 71.997407,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 131.7651,
+      "y_diff": 34.5483,
+      "distance": 136.21903909109034,
+      "angle_diff": 71.997407,
+      "python_angle_deg": 71.997407,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 6,
+      "agent_id": 8,
+      "python_x": 187.7075,
+      "python_y": 34.3726,
+      "python_angle": 108.003104,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 187.7075,
+      "y_diff": 34.3726,
+      "distance": 190.8286697197515,
+      "angle_diff": 108.003104,
+      "python_angle_deg": 108.003104,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 6,
+      "agent_id": 9,
+      "python_x": 232.6196,
+      "python_y": 66.8262,
+      "python_angle": 143.994813,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 232.6196,
+      "y_diff": 66.8262,
+      "distance": 242.0281374357122,
+      "angle_diff": 143.994813,
+      "python_angle_deg": 143.994813,
+      "rtl_angle_deg": 0.0
+    }
+  ],
+  "7": [
+    {
+      "step": 7,
+      "agent_id": 0,
+      "python_x": 249.0,
+      "python_y": 120.0,
+      "python_angle": 180.00051,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 249.0,
+      "y_diff": 120.0,
+      "distance": 276.40730815229904,
+      "angle_diff": 180.00051,
+      "python_angle_deg": 180.00051,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 7,
+      "agent_id": 1,
+      "python_x": 232.1387,
+      "python_y": 172.1267,
+      "python_angle": 216.006208,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 232.1387,
+      "y_diff": 172.1267,
+      "distance": 288.99130936860365,
+      "angle_diff": 216.006208,
+      "python_angle_deg": 216.006208,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 7,
+      "agent_id": 2,
+      "python_x": 187.9211,
+      "python_y": 204.5022,
+      "python_angle": 251.997917,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 187.9211,
+      "y_diff": 204.5022,
+      "distance": 277.732766576164,
+      "angle_diff": 251.997917,
+      "python_angle_deg": 251.997917,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 7,
+      "agent_id": 3,
+      "python_x": 132.6003,
+      "python_y": 204.676,
+      "python_angle": 288.003614,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 132.6003,
+      "y_diff": 204.676,
+      "distance": 243.87518228817382,
+      "angle_diff": 288.003614,
+      "python_angle_deg": 288.003614,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 7,
+      "agent_id": 4,
+      "python_x": 88.1873,
+      "python_y": 172.583,
+      "python_angle": 323.995324,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 88.1873,
+      "y_diff": 172.583,
+      "distance": 193.808905291501,
+      "angle_diff": 323.995324,
+      "python_angle_deg": 323.995324,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 7,
+      "agent_id": 5,
+      "python_x": 71.0,
+      "python_y": 120.0,
+      "python_angle": 0.0,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 71.0,
+      "y_diff": 120.0,
+      "distance": 139.43098651304163,
+      "angle_diff": 0.0,
+      "python_angle_deg": 0.0,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 7,
+      "agent_id": 6,
+      "python_x": 87.8613,
+      "python_y": 67.8733,
+      "python_angle": 36.005697,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 87.8613,
+      "y_diff": 67.8733,
+      "distance": 111.02428964231206,
+      "angle_diff": 36.005697,
+      "python_angle_deg": 36.005697,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 7,
+      "agent_id": 7,
+      "python_x": 132.0789,
+      "python_y": 35.4978,
+      "python_angle": 71.997407,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 132.0789,
+      "y_diff": 35.4978,
+      "distance": 136.76596663662346,
+      "angle_diff": 71.997407,
+      "python_angle_deg": 71.997407,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 7,
+      "agent_id": 8,
+      "python_x": 187.3997,
+      "python_y": 35.324,
+      "python_angle": 108.003104,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 187.3997,
+      "y_diff": 35.324,
+      "distance": 190.69984933420898,
+      "angle_diff": 108.003104,
+      "python_angle_deg": 108.003104,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 7,
+      "agent_id": 9,
+      "python_x": 231.8127,
+      "python_y": 67.417,
+      "python_angle": 143.994813,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 231.8127,
+      "y_diff": 67.417,
+      "distance": 241.41702460740007,
+      "angle_diff": 143.994813,
+      "python_angle_deg": 143.994813,
+      "rtl_angle_deg": 0.0
+    }
+  ],
+  "8": [
+    {
+      "step": 8,
+      "agent_id": 0,
+      "python_x": 248.0,
+      "python_y": 120.0,
+      "python_angle": 180.00051,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 248.0,
+      "y_diff": 120.0,
+      "distance": 275.506805723561,
+      "angle_diff": 180.00051,
+      "python_angle_deg": 180.00051,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 8,
+      "agent_id": 1,
+      "python_x": 231.3281,
+      "python_y": 171.541,
+      "python_angle": 216.006208,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 231.3281,
+      "y_diff": 171.541,
+      "distance": 287.99132717950033,
+      "angle_diff": 216.006208,
+      "python_angle_deg": 216.006208,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 8,
+      "agent_id": 2,
+      "python_x": 187.6074,
+      "python_y": 203.5527,
+      "python_angle": 251.997917,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 187.6074,
+      "y_diff": 203.5527,
+      "distance": 276.8216722224797,
+      "angle_diff": 251.997917,
+      "python_angle_deg": 251.997917,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 8,
+      "agent_id": 3,
+      "python_x": 132.9082,
+      "python_y": 203.7246,
+      "python_angle": 288.003614,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 132.9082,
+      "y_diff": 203.7246,
+      "distance": 243.2453540612852,
+      "angle_diff": 288.003614,
+      "python_angle_deg": 288.003614,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 8,
+      "agent_id": 4,
+      "python_x": 88.9941,
+      "python_y": 171.9922,
+      "python_angle": 323.995324,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 88.9941,
+      "y_diff": 171.9922,
+      "distance": 193.6524378768571,
+      "angle_diff": 323.995324,
+      "python_angle_deg": 323.995324,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 8,
+      "agent_id": 5,
+      "python_x": 72.0,
+      "python_y": 120.0,
+      "python_angle": 0.0,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 72.0,
+      "y_diff": 120.0,
+      "distance": 139.9428454762872,
+      "angle_diff": 0.0,
+      "python_angle_deg": 0.0,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 8,
+      "agent_id": 6,
+      "python_x": 88.6719,
+      "python_y": 68.459,
+      "python_angle": 36.005697,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 88.6719,
+      "y_diff": 68.459,
+      "distance": 112.02383911743964,
+      "angle_diff": 36.005697,
+      "python_angle_deg": 36.005697,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 8,
+      "agent_id": 7,
+      "python_x": 132.3926,
+      "python_y": 36.4473,
+      "python_angle": 71.997407,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 132.3926,
+      "y_diff": 36.4473,
+      "distance": 137.31790200862378,
+      "angle_diff": 71.997407,
+      "python_angle_deg": 71.997407,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 8,
+      "agent_id": 8,
+      "python_x": 187.0918,
+      "python_y": 36.2754,
+      "python_angle": 108.003104,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 187.0918,
+      "y_diff": 36.2754,
+      "distance": 190.57609050560356,
+      "angle_diff": 108.003104,
+      "python_angle_deg": 108.003104,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 8,
+      "agent_id": 9,
+      "python_x": 231.0059,
+      "python_y": 68.0078,
+      "python_angle": 143.994813,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 231.0059,
+      "y_diff": 68.0078,
+      "distance": 240.80861009451053,
+      "angle_diff": 143.994813,
+      "python_angle_deg": 143.994813,
+      "rtl_angle_deg": 0.0
+    }
+  ],
+  "9": [
+    {
+      "step": 9,
+      "agent_id": 0,
+      "python_x": 247.0,
+      "python_y": 120.0,
+      "python_angle": 180.00051,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 247.0,
+      "y_diff": 120.0,
+      "distance": 274.6069918993324,
+      "angle_diff": 180.00051,
+      "python_angle_deg": 180.00051,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 9,
+      "agent_id": 1,
+      "python_x": 230.5176,
+      "python_y": 170.9553,
+      "python_angle": 216.006208,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 230.5176,
+      "y_diff": 170.9553,
+      "distance": 286.99142584378717,
+      "angle_diff": 216.006208,
+      "python_angle_deg": 216.006208,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 9,
+      "agent_id": 2,
+      "python_x": 187.2937,
+      "python_y": 202.6033,
+      "python_angle": 251.997917,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 187.2937,
+      "y_diff": 202.6033,
+      "distance": 275.9112669511341,
+      "angle_diff": 251.997917,
+      "python_angle_deg": 251.997917,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 9,
+      "agent_id": 3,
+      "python_x": 133.2161,
+      "python_y": 202.7732,
+      "python_angle": 288.003614,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 133.2161,
+      "y_diff": 202.7732,
+      "distance": 242.61801239283534,
+      "angle_diff": 288.003614,
+      "python_angle_deg": 288.003614,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 9,
+      "agent_id": 4,
+      "python_x": 89.801,
+      "python_y": 171.4014,
+      "python_angle": 323.995324,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 89.801,
+      "y_diff": 171.4014,
+      "distance": 193.50105819596956,
+      "angle_diff": 323.995324,
+      "python_angle_deg": 323.995324,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 9,
+      "agent_id": 5,
+      "python_x": 73.0,
+      "python_y": 120.0,
+      "python_angle": 0.0,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 73.0,
+      "y_diff": 120.0,
+      "distance": 140.45995870709916,
+      "angle_diff": 0.0,
+      "python_angle_deg": 0.0,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 9,
+      "agent_id": 6,
+      "python_x": 89.4824,
+      "python_y": 69.0447,
+      "python_angle": 36.005697,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 89.4824,
+      "y_diff": 69.0447,
+      "distance": 113.02331842522587,
+      "angle_diff": 36.005697,
+      "python_angle_deg": 36.005697,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 9,
+      "agent_id": 7,
+      "python_x": 132.7063,
+      "python_y": 37.3967,
+      "python_angle": 71.997407,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 132.7063,
+      "y_diff": 37.3967,
+      "distance": 137.87485351063842,
+      "angle_diff": 71.997407,
+      "python_angle_deg": 71.997407,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 9,
+      "agent_id": 8,
+      "python_x": 186.7839,
+      "python_y": 37.2268,
+      "python_angle": 108.003104,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 186.7839,
+      "y_diff": 37.2268,
+      "distance": 190.45750165706258,
+      "angle_diff": 108.003104,
+      "python_angle_deg": 108.003104,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 9,
+      "agent_id": 9,
+      "python_x": 230.199,
+      "python_y": 68.5986,
+      "python_angle": 143.994813,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 230.199,
+      "y_diff": 68.5986,
+      "distance": 240.20272172263162,
+      "angle_diff": 143.994813,
+      "python_angle_deg": 143.994813,
+      "rtl_angle_deg": 0.0
+    }
+  ],
+  "10": [
+    {
+      "step": 10,
+      "agent_id": 0,
+      "python_x": 246.0,
+      "python_y": 120.0,
+      "python_angle": 180.00051,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 246.0,
+      "y_diff": 120.0,
+      "distance": 273.70787347096905,
+      "angle_diff": 180.00051,
+      "python_angle_deg": 180.00051,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 10,
+      "agent_id": 1,
+      "python_x": 229.707,
+      "python_y": 170.3696,
+      "python_angle": 216.006208,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 229.707,
+      "y_diff": 170.3696,
+      "distance": 285.9914447202224,
+      "angle_diff": 216.006208,
+      "python_angle_deg": 216.006208,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 10,
+      "agent_id": 2,
+      "python_x": 186.98,
+      "python_y": 201.6538,
+      "python_angle": 251.997917,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 186.98,
+      "y_diff": 201.6538,
+      "distance": 275.0014099135493,
+      "angle_diff": 251.997917,
+      "python_angle_deg": 251.997917,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 10,
+      "agent_id": 3,
+      "python_x": 133.5239,
+      "python_y": 201.8218,
+      "python_angle": 288.003614,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 133.5239,
+      "y_diff": 201.8218,
+      "distance": 241.9931214444948,
+      "angle_diff": 288.003614,
+      "python_angle_deg": 288.003614,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 10,
+      "agent_id": 4,
+      "python_x": 90.6079,
+      "python_y": 170.8105,
+      "python_angle": 323.995324,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 90.6079,
+      "y_diff": 170.8105,
+      "distance": 193.35464424900684,
+      "angle_diff": 323.995324,
+      "python_angle_deg": 323.995324,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 10,
+      "agent_id": 5,
+      "python_x": 74.0,
+      "python_y": 120.0,
+      "python_angle": 0.0,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 74.0,
+      "y_diff": 120.0,
+      "distance": 140.98226838861686,
+      "angle_diff": 0.0,
+      "python_angle_deg": 0.0,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 10,
+      "agent_id": 6,
+      "python_x": 90.293,
+      "python_y": 69.6304,
+      "python_angle": 36.005697,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 90.293,
+      "y_diff": 69.6304,
+      "distance": 114.0228856552929,
+      "angle_diff": 36.005697,
+      "python_angle_deg": 36.005697,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 10,
+      "agent_id": 7,
+      "python_x": 133.02,
+      "python_y": 38.3462,
+      "python_angle": 71.997407,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 133.02,
+      "y_diff": 38.3462,
+      "distance": 138.43681394210142,
+      "angle_diff": 71.997407,
+      "python_angle_deg": 71.997407,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 10,
+      "agent_id": 8,
+      "python_x": 186.4761,
+      "python_y": 38.1782,
+      "python_angle": 108.003104,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 186.4761,
+      "y_diff": 38.1782,
+      "distance": 190.3441904194872,
+      "angle_diff": 108.003104,
+      "python_angle_deg": 108.003104,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 10,
+      "agent_id": 9,
+      "python_x": 229.3921,
+      "python_y": 69.1895,
+      "python_angle": 143.994813,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 229.3921,
+      "y_diff": 69.1895,
+      "distance": 239.59950428300138,
+      "angle_diff": 143.994813,
+      "python_angle_deg": 143.994813,
+      "rtl_angle_deg": 0.0
+    }
+  ]
+};
+        let steps = Object.keys(trajectoryData).map(s => parseInt(s)).sort((a, b) => a - b);
+        let currentStep = 0;
+
+        let showPython = true;
+        let showRTL = true;
+        let showVectors = true;
+        let showSpawnCircle = true;
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Setup keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') previousStep();
+            if (e.key === 'ArrowRight') nextStep();
+            if (e.key.toLowerCase() === 'p') togglePython();
+            if (e.key.toLowerCase() === 'r') toggleRTL();
+            if (e.key.toLowerCase() === 'v') toggleVectors();
+            if (e.key.toLowerCase() === 'c') toggleSpawnCircle();
+        });
+
+        function previousStep() {
+            if (currentStep > 0) {
+                currentStep--;
+                render();
+            }
+        }
+
+        function nextStep() {
+            if (currentStep < steps.length - 1) {
+                currentStep++;
+                render();
+            }
+        }
+
+        function togglePython() {
+            showPython = !showPython;
+            document.getElementById('showPython').checked = showPython;
+            render();
+        }
+
+        function toggleRTL() {
+            showRTL = !showRTL;
+            document.getElementById('showRTL').checked = showRTL;
+            render();
+        }
+
+        function toggleVectors() {
+            showVectors = !showVectors;
+            document.getElementById('showVectors').checked = showVectors;
+            render();
+        }
+
+        function toggleSpawnCircle() {
+            showSpawnCircle = !showSpawnCircle;
+            document.getElementById('showSpawnCircle').checked = showSpawnCircle;
+            render();
+        }
+
+        function render() {
+            // Clear canvas
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= WIDTH; i += 40) {
+                ctx.beginPath();
+                ctx.moveTo(i * SCALE, 0);
+                ctx.lineTo(i * SCALE, HEIGHT * SCALE);
+                ctx.stroke();
+            }
+            for (let i = 0; i <= HEIGHT; i += 40) {
+                ctx.beginPath();
+                ctx.moveTo(0, i * SCALE);
+                ctx.lineTo(WIDTH * SCALE, i * SCALE);
+                ctx.stroke();
+            }
+
+            // Draw spawn circle
+            if (showSpawnCircle) {
+                ctx.strokeStyle = '#444';
+                ctx.lineWidth = 2;
+                const cx = WIDTH / 2;
+                const cy = HEIGHT / 2;
+                ctx.beginPath();
+                ctx.arc(cx * SCALE, cy * SCALE, SPAWN_RADIUS * SCALE, 0, 2 * Math.PI);
+                ctx.stroke();
+            }
+
+            // Get current step data
+            const stepNum = steps[currentStep];
+            const agents = trajectoryData[stepNum] || [];
+
+            // Calculate statistics
+            let sumXDiff = 0, sumYDiff = 0, sumAngleDiff = 0;
+            let validCount = 0;
+
+            // Draw agents
+            agents.forEach(agent => {
+                const py_x = parseFloat(agent.python_x);
+                const py_y = parseFloat(agent.python_y);
+                const py_angle = parseFloat(agent.python_angle_deg);
+
+                const rtl_x = agent.rtl_x ? parseFloat(agent.rtl_x) : null;
+                const rtl_y = agent.rtl_y ? parseFloat(agent.rtl_y) : null;
+                const rtl_angle = agent.rtl_angle_deg ? parseFloat(agent.rtl_angle_deg) : null;
+
+                // Draw Python agent
+                if (showPython && py_x !== null && py_y !== null) {
+                    ctx.fillStyle = '#ff4444';
+                    ctx.beginPath();
+                    ctx.arc(py_x * SCALE, py_y * SCALE, 4, 0, 2 * Math.PI);
+                    ctx.fill();
+
+                    // Draw vector
+                    if (showVectors) {
+                        const rad = py_angle * Math.PI / 180;
+                        const vlen = 15;
+                        const vx = Math.cos(rad) * vlen;
+                        const vy = Math.sin(rad) * vlen;
+
+                        ctx.strokeStyle = '#ff4444';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(py_x * SCALE, py_y * SCALE);
+                        ctx.lineTo((py_x + vx/SCALE) * SCALE, (py_y + vy/SCALE) * SCALE);
+                        ctx.stroke();
+                    }
+                }
+
+                // Draw RTL agent (colored by error magnitude)
+                if (showRTL && rtl_x !== null && rtl_y !== null) {
+                    // Color by error magnitude: green=0, red=100+
+                    const distance = parseFloat(agent.distance) || 0;
+                    let color = '#00ccff';  // default cyan
+                    if (distance > 0) {
+                        if (distance < 20) color = '#7fff00';     // lime-green
+                        else if (distance < 40) color = '#ffff00';  // yellow
+                        else if (distance < 60) color = '#ff7f00';  // orange
+                        else color = '#ff0000';                     // red
+                    }
+
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.rect(rtl_x * SCALE - 3, rtl_y * SCALE - 3, 6, 6);
+                    ctx.fill();
+
+                    // Draw agent ID label
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '10px monospace';
+                    ctx.fillText(agent.agent_id, rtl_x * SCALE + 5, rtl_y * SCALE - 5);
+
+                    // Draw vector
+                    if (showVectors) {
+                        const rad = rtl_angle * Math.PI / 180;
+                        const vlen = 15;
+                        const vx = Math.cos(rad) * vlen;
+                        const vy = Math.sin(rad) * vlen;
+
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(rtl_x * SCALE, rtl_y * SCALE);
+                        ctx.lineTo((rtl_x + vx/SCALE) * SCALE, (rtl_y + vy/SCALE) * SCALE);
+                        ctx.stroke();
+                    }
+                }
+
+                // Calculate stats
+                if (rtl_x !== null && rtl_y !== null && rtl_angle !== null) {
+                    const xDiff = Math.abs(py_x - rtl_x);
+                    const yDiff = Math.abs(py_y - rtl_y);
+                    const angleDiff = Math.abs(py_angle - rtl_angle);
+
+                    sumXDiff += xDiff;
+                    sumYDiff += yDiff;
+                    sumAngleDiff += angleDiff;
+                    validCount++;
+                }
+            });
+
+            // Update UI
+            document.getElementById('stepNumber').textContent = stepNum;
+            document.getElementById('stepLabel').textContent = `Step ${stepNum}`;
+            document.getElementById('totalSteps').textContent = steps.length;
+            document.getElementById('agentCount').textContent = agents.length;
+
+            if (validCount > 0) {
+                document.getElementById('meanXDiff').textContent = (sumXDiff / validCount).toFixed(2);
+                document.getElementById('meanYDiff').textContent = (sumYDiff / validCount).toFixed(2);
+                document.getElementById('meanAngleDiff').textContent = (sumAngleDiff / validCount).toFixed(2) + '°';
+            }
+        }
+
+        // Initial render
+        render();
+    </script>
+</body>
+</html>

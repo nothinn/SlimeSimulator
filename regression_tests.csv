@@ -1,11 +1,11 @@
 test_id,test_name,test_type,num_agents,resolution,num_steps,python_enabled,rtl_enabled,generate_trajectory_html,generate_trail_map,generate_comparison_images,generate_statistics,output_dir,description
-1,smoke_test,smoke,10,320x240,1,true,true,true,true,false,true,1_smoke_test,Quick smoke test with minimal configuration
-2,init_validation,unit,10,320x240,1,true,true,true,true,false,true,2_init_validation,Validate initialization and step 0 state
-3,short_sim,unit,10,320x240,10,true,true,true,true,false,true,3_short_sim,Short simulation for basic functionality
-4,medium_agents,integration,100,320x240,10,true,true,true,true,false,true,4_medium_agents,Medium agent count integration test
-5,medium_duration,integration,100,320x240,100,true,true,true,true,false,true,5_medium_duration,Medium duration integration test
-6,high_res,integration,100,640x480,10,true,true,true,true,false,true,6_high_res,High resolution integration test
-7,many_agents,performance,1000,320x240,10,true,true,true,true,false,true,7_many_agents,Performance test with many agents
-8,long_sim,performance,100,320x240,500,true,true,true,true,false,true,8_long_sim,Long duration performance test
-9,full_scale,system,1000,640x480,100,true,true,true,true,false,true,9_full_scale,Full-scale system test
-10,stress_test,stress,1000,640x480,2000,true,true,true,true,false,true,10_stress_test,Long duration stress test
+1,smoke_test,smoke,10,320x240,1,true,true,true,true,false,true,test_results/1_smoke_test,Quick smoke test with minimal configuration
+2,init_validation,unit,10,320x240,1,true,true,true,true,false,true,test_results/2_init_validation,Validate initialization and step 0 state
+3,short_sim,unit,10,320x240,10,true,true,true,true,false,true,test_results/3_short_sim,Short simulation for basic functionality
+4,medium_agents,integration,100,320x240,10,true,true,true,true,false,true,test_results/4_medium_agents,Medium agent count integration test
+5,medium_duration,integration,100,320x240,100,true,true,true,true,false,true,test_results/5_medium_duration,Medium duration integration test
+6,high_res,integration,100,640x480,10,true,true,true,true,false,true,test_results/6_high_res,High resolution integration test
+7,many_agents,performance,1000,320x240,10,true,true,true,true,false,true,test_results/7_many_agents,Performance test with many agents
+8,long_sim,performance,100,320x240,500,true,true,true,true,false,true,test_results/8_long_sim,Long duration performance test
+9,full_scale,system,1000,640x480,100,true,true,true,true,false,true,test_results/9_full_scale,Full-scale system test
+10,stress_test,stress,1000,640x480,2000,true,true,true,true,false,true,test_results/10_stress_test,Long duration stress test

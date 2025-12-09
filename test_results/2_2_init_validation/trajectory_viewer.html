@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Agent Trajectory Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e1e1e;
+            color: #e0e0e0;
+            display: flex;
+            height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            width: 100%;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .canvas-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        canvas {
+            border: 2px solid #444;
+            background: #000;
+            flex: 1;
+            border-radius: 4px;
+        }
+
+        .controls-panel {
+            width: 300px;
+            background: #2d2d2d;
+            border-radius: 4px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+        }
+
+        .control-section {
+            border-bottom: 1px solid #444;
+            padding-bottom: 15px;
+        }
+
+        .control-section:last-child {
+            border-bottom: none;
+        }
+
+        h3 {
+            font-size: 14px;
+            color: #61dafb;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .step-info {
+            background: #3d3d3d;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .step-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #61dafb;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            flex: 1;
+            padding: 8px 12px;
+            background: #0ea5e9;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #0284c7;
+        }
+
+        button:active {
+            background: #0369a1;
+        }
+
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .checkbox-item:hover {
+            background: #3d3d3d;
+        }
+
+        input[type="checkbox"] {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+        }
+
+        .label {
+            flex: 1;
+            font-size: 13px;
+        }
+
+        .color-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+
+        .python-color {
+            background: #ff4444;
+        }
+
+        .rtl-color {
+            background: #00ccff;
+        }
+
+        .stats {
+            background: #3d3d3d;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: monospace;
+            line-height: 1.6;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .stat-label {
+            color: #aaa;
+        }
+
+        .stat-value {
+            color: #61dafb;
+            font-weight: bold;
+        }
+
+        .keyboard-hint {
+            background: #3d3d3d;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #aaa;
+            line-height: 1.6;
+        }
+
+        .keyboard-hint code {
+            background: #000;
+            padding: 2px 4px;
+            border-radius: 2px;
+            color: #61dafb;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="canvas-panel">
+            <canvas id="canvas" width="640" height="480"></canvas>
+        </div>
+
+        <div class="controls-panel">
+            <div class="control-section">
+                <h3>Step Navigation</h3>
+                <div class="step-info">
+                    <div class="step-number" id="stepNumber">0</div>
+                    <div style="color: #aaa; font-size: 12px; margin-top: 5px;">
+                        <span id="stepLabel">Step</span> / <span id="totalSteps">5</span>
+                    </div>
+                </div>
+                <div class="button-group" style="margin-top: 10px;">
+                    <button onclick="previousStep()">&larr; Previous</button>
+                    <button onclick="nextStep()">Next &rarr;</button>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Agent Display</h3>
+                <div class="checkbox-group">
+                    <div class="checkbox-item" onclick="togglePython()">
+                        <input type="checkbox" id="showPython" checked>
+                        <div class="color-indicator python-color"></div>
+                        <label class="label">Show Python</label>
+                    </div>
+                    <div class="checkbox-item" onclick="toggleRTL()">
+                        <input type="checkbox" id="showRTL" checked>
+                        <div class="color-indicator rtl-color"></div>
+                        <label class="label">Show RTL</label>
+                    </div>
+                    <div class="checkbox-item" onclick="toggleVectors()">
+                        <input type="checkbox" id="showVectors" checked>
+                        <div style="width: 12px; height: 12px; border: 1px solid #aaa;"></div>
+                        <label class="label">Show Vectors</label>
+                    </div>
+                    <div class="checkbox-item" onclick="toggleSpawnCircle()">
+                        <input type="checkbox" id="showSpawnCircle" checked>
+                        <label class="label">Show Spawn Circle</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Statistics</h3>
+                <div class="stats">
+                    <div class="stat-row">
+                        <span class="stat-label">Agents:</span>
+                        <span class="stat-value" id="agentCount">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Mean X Diff:</span>
+                        <span class="stat-value" id="meanXDiff">0.00</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Mean Y Diff:</span>
+                        <span class="stat-value" id="meanYDiff">0.00</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Mean Angle Diff:</span>
+                        <span class="stat-value" id="meanAngleDiff">0.00°</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Keyboard Shortcuts</h3>
+                <div class="keyboard-hint">
+                    <div><code>←</code> / <code>→</code> Navigate steps</div>
+                    <div><code>P</code> Toggle Python</div>
+                    <div><code>R</code> Toggle RTL</div>
+                    <div><code>V</code> Toggle vectors</div>
+                    <div><code>C</code> Toggle circle</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const WIDTH = 320;
+        const HEIGHT = 240;
+        const SCALE = 2;  // Canvas scale for clarity
+        const SPAWN_RADIUS = Math.min(WIDTH, HEIGHT) * 0.4;
+
+        let trajectoryData = {
+  "0": [
+    {
+      "step": 0,
+      "agent_id": 0,
+      "python_x": 256.0,
+      "python_y": 120.0,
+      "python_angle": 180.00051,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 256.0,
+      "y_diff": 120.0,
+      "distance": 282.72955275315667,
+      "angle_diff": 180.00051,
+      "python_angle_deg": 180.00051,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 0,
+      "agent_id": 1,
+      "python_x": 237.8125,
+      "python_y": 176.2266,
+      "python_angle": 216.006208,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 237.8125,
+      "y_diff": 176.2266,
+      "distance": 295.99087773749045,
+      "angle_diff": 216.006208,
+      "python_angle_deg": 216.006208,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 0,
+      "agent_id": 2,
+      "python_x": 190.1172,
+      "python_y": 211.1484,
+      "python_angle": 251.997917,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 190.1172,
+      "y_diff": 211.1484,
+      "distance": 284.12707818580054,
+      "angle_diff": 251.997917,
+      "python_angle_deg": 251.997917,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 0,
+      "agent_id": 3,
+      "python_x": 130.4453,
+      "python_y": 211.3359,
+      "python_angle": 288.003614,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 130.4453,
+      "y_diff": 211.3359,
+      "distance": 248.35224766629352,
+      "angle_diff": 288.003614,
+      "python_angle_deg": 288.003614,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 0,
+      "agent_id": 4,
+      "python_x": 82.5391,
+      "python_y": 176.7188,
+      "python_angle": 323.995324,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 82.5391,
+      "y_diff": 176.7188,
+      "distance": 195.0441932031046,
+      "angle_diff": 323.995324,
+      "python_angle_deg": 323.995324,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 0,
+      "agent_id": 5,
+      "python_x": 64.0,
+      "python_y": 120.0,
+      "python_angle": 0.0,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 64.0,
+      "y_diff": 120.0,
+      "distance": 136.0,
+      "angle_diff": 0.0,
+      "python_angle_deg": 0.0,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 0,
+      "agent_id": 6,
+      "python_x": 82.1875,
+      "python_y": 63.7734,
+      "python_angle": 36.005697,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 82.1875,
+      "y_diff": 63.7734,
+      "distance": 104.02803325935754,
+      "angle_diff": 36.005697,
+      "python_angle_deg": 36.005697,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 0,
+      "agent_id": 7,
+      "python_x": 129.8828,
+      "python_y": 28.8516,
+      "python_angle": 71.997407,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 129.8828,
+      "y_diff": 28.8516,
+      "distance": 133.0486999500559,
+      "angle_diff": 71.997407,
+      "python_angle_deg": 71.997407,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 0,
+      "agent_id": 8,
+      "python_x": 189.5547,
+      "python_y": 28.6641,
+      "python_angle": 108.003104,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 189.5547,
+      "y_diff": 28.6641,
+      "distance": 191.70971524912346,
+      "angle_diff": 108.003104,
+      "python_angle_deg": 108.003104,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 0,
+      "agent_id": 9,
+      "python_x": 237.4609,
+      "python_y": 63.2812,
+      "python_angle": 143.994813,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 237.4609,
+      "y_diff": 63.2812,
+      "distance": 245.74822339591796,
+      "angle_diff": 143.994813,
+      "python_angle_deg": 143.994813,
+      "rtl_angle_deg": 0.0
+    }
+  ],
+  "1": [
+    {
+      "step": 1,
+      "agent_id": 0,
+      "python_x": 255.0,
+      "python_y": 120.0,
+      "python_angle": 180.00051,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 255.0,
+      "y_diff": 120.0,
+      "distance": 281.82441342083905,
+      "angle_diff": 180.00051,
+      "python_angle_deg": 180.00051,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 1,
+      "agent_id": 1,
+      "python_x": 237.002,
+      "python_y": 175.6409,
+      "python_angle": 216.006208,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 237.002,
+      "y_diff": 175.6409,
+      "distance": 294.9909723310359,
+      "angle_diff": 216.006208,
+      "python_angle_deg": 216.006208,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 1,
+      "agent_id": 2,
+      "python_x": 189.8035,
+      "python_y": 210.199,
+      "python_angle": 251.997917,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 189.8035,
+      "y_diff": 210.199,
+      "distance": 283.2119139677037,
+      "angle_diff": 251.997917,
+      "python_angle_deg": 251.997917,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 1,
+      "agent_id": 3,
+      "python_x": 130.7532,
+      "python_y": 210.3845,
+      "python_angle": 288.003614,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 130.7532,
+      "y_diff": 210.3845,
+      "distance": 247.70554525583393,
+      "angle_diff": 288.003614,
+      "python_angle_deg": 288.003614,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 1,
+      "agent_id": 4,
+      "python_x": 83.3459,
+      "python_y": 176.1279,
+      "python_angle": 323.995324,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 83.3459,
+      "y_diff": 176.1279,
+      "distance": 194.85270386941005,
+      "angle_diff": 323.995324,
+      "python_angle_deg": 323.995324,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 1,
+      "agent_id": 5,
+      "python_x": 65.0,
+      "python_y": 120.0,
+      "python_angle": 0.0,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 65.0,
+      "y_diff": 120.0,
+      "distance": 136.4734406395618,
+      "angle_diff": 0.0,
+      "python_angle_deg": 0.0,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 1,
+      "agent_id": 6,
+      "python_x": 82.998,
+      "python_y": 64.3591,
+      "python_angle": 36.005697,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 82.998,
+      "y_diff": 64.3591,
+      "distance": 105.0274333534339,
+      "angle_diff": 36.005697,
+      "python_angle_deg": 36.005697,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 1,
+      "agent_id": 7,
+      "python_x": 130.1965,
+      "python_y": 29.801,
+      "python_angle": 71.997407,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 130.1965,
+      "y_diff": 29.801,
+      "distance": 133.5635736765455,
+      "angle_diff": 71.997407,
+      "python_angle_deg": 71.997407,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 1,
+      "agent_id": 8,
+      "python_x": 189.2468,
+      "python_y": 29.6155,
+      "python_angle": 108.003104,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 189.2468,
+      "y_diff": 29.6155,
+      "distance": 191.5500695653489,
+      "angle_diff": 108.003104,
+      "python_angle_deg": 108.003104,
+      "rtl_angle_deg": 0.0
+    },
+    {
+      "step": 1,
+      "agent_id": 9,
+      "python_x": 236.6541,
+      "python_y": 63.8721,
+      "python_angle": 143.994813,
+      "rtl_x": 0.0,
+      "rtl_y": 0.0,
+      "rtl_angle": 0.0,
+      "x_diff": 236.6541,
+      "y_diff": 63.8721,
+      "distance": 245.12202717263088,
+      "angle_diff": 143.994813,
+      "python_angle_deg": 143.994813,
+      "rtl_angle_deg": 0.0
+    }
+  ]
+};
+        let steps = Object.keys(trajectoryData).map(s => parseInt(s)).sort((a, b) => a - b);
+        let currentStep = 0;
+
+        let showPython = true;
+        let showRTL = true;
+        let showVectors = true;
+        let showSpawnCircle = true;
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Setup keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') previousStep();
+            if (e.key === 'ArrowRight') nextStep();
+            if (e.key.toLowerCase() === 'p') togglePython();
+            if (e.key.toLowerCase() === 'r') toggleRTL();
+            if (e.key.toLowerCase() === 'v') toggleVectors();
+            if (e.key.toLowerCase() === 'c') toggleSpawnCircle();
+        });
+
+        function previousStep() {
+            if (currentStep > 0) {
+                currentStep--;
+                render();
+            }
+        }
+
+        function nextStep() {
+            if (currentStep < steps.length - 1) {
+                currentStep++;
+                render();
+            }
+        }
+
+        function togglePython() {
+            showPython = !showPython;
+            document.getElementById('showPython').checked = showPython;
+            render();
+        }
+
+        function toggleRTL() {
+            showRTL = !showRTL;
+            document.getElementById('showRTL').checked = showRTL;
+            render();
+        }
+
+        function toggleVectors() {
+            showVectors = !showVectors;
+            document.getElementById('showVectors').checked = showVectors;
+            render();
+        }
+
+        function toggleSpawnCircle() {
+            showSpawnCircle = !showSpawnCircle;
+            document.getElementById('showSpawnCircle').checked = showSpawnCircle;
+            render();
+        }
+
+        function render() {
+            // Clear canvas
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= WIDTH; i += 40) {
+                ctx.beginPath();
+                ctx.moveTo(i * SCALE, 0);
+                ctx.lineTo(i * SCALE, HEIGHT * SCALE);
+                ctx.stroke();
+            }
+            for (let i = 0; i <= HEIGHT; i += 40) {
+                ctx.beginPath();
+                ctx.moveTo(0, i * SCALE);
+                ctx.lineTo(WIDTH * SCALE, i * SCALE);
+                ctx.stroke();
+            }
+
+            // Draw spawn circle
+            if (showSpawnCircle) {
+                ctx.strokeStyle = '#444';
+                ctx.lineWidth = 2;
+                const cx = WIDTH / 2;
+                const cy = HEIGHT / 2;
+                ctx.beginPath();
+                ctx.arc(cx * SCALE, cy * SCALE, SPAWN_RADIUS * SCALE, 0, 2 * Math.PI);
+                ctx.stroke();
+            }
+
+            // Get current step data
+            const stepNum = steps[currentStep];
+            const agents = trajectoryData[stepNum] || [];
+
+            // Calculate statistics
+            let sumXDiff = 0, sumYDiff = 0, sumAngleDiff = 0;
+            let validCount = 0;
+
+            // Draw agents
+            agents.forEach(agent => {
+                const py_x = parseFloat(agent.python_x);
+                const py_y = parseFloat(agent.python_y);
+                const py_angle = parseFloat(agent.python_angle_deg);
+
+                const rtl_x = agent.rtl_x ? parseFloat(agent.rtl_x) : null;
+                const rtl_y = agent.rtl_y ? parseFloat(agent.rtl_y) : null;
+                const rtl_angle = agent.rtl_angle_deg ? parseFloat(agent.rtl_angle_deg) : null;
+
+                // Draw Python agent
+                if (showPython && py_x !== null && py_y !== null) {
+                    ctx.fillStyle = '#ff4444';
+                    ctx.beginPath();
+                    ctx.arc(py_x * SCALE, py_y * SCALE, 4, 0, 2 * Math.PI);
+                    ctx.fill();
+
+                    // Draw vector
+                    if (showVectors) {
+                        const rad = py_angle * Math.PI / 180;
+                        const vlen = 15;
+                        const vx = Math.cos(rad) * vlen;
+                        const vy = Math.sin(rad) * vlen;
+
+                        ctx.strokeStyle = '#ff4444';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(py_x * SCALE, py_y * SCALE);
+                        ctx.lineTo((py_x + vx/SCALE) * SCALE, (py_y + vy/SCALE) * SCALE);
+                        ctx.stroke();
+                    }
+                }
+
+                // Draw RTL agent (colored by error magnitude)
+                if (showRTL && rtl_x !== null && rtl_y !== null) {
+                    // Color by error magnitude: green=0, red=100+
+                    const distance = parseFloat(agent.distance) || 0;
+                    let color = '#00ccff';  // default cyan
+                    if (distance > 0) {
+                        if (distance < 20) color = '#7fff00';     // lime-green
+                        else if (distance < 40) color = '#ffff00';  // yellow
+                        else if (distance < 60) color = '#ff7f00';  // orange
+                        else color = '#ff0000';                     // red
+                    }
+
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.rect(rtl_x * SCALE - 3, rtl_y * SCALE - 3, 6, 6);
+                    ctx.fill();
+
+                    // Draw agent ID label
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '10px monospace';
+                    ctx.fillText(agent.agent_id, rtl_x * SCALE + 5, rtl_y * SCALE - 5);
+
+                    // Draw vector
+                    if (showVectors) {
+                        const rad = rtl_angle * Math.PI / 180;
+                        const vlen = 15;
+                        const vx = Math.cos(rad) * vlen;
+                        const vy = Math.sin(rad) * vlen;
+
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(rtl_x * SCALE, rtl_y * SCALE);
+                        ctx.lineTo((rtl_x + vx/SCALE) * SCALE, (rtl_y + vy/SCALE) * SCALE);
+                        ctx.stroke();
+                    }
+                }
+
+                // Calculate stats
+                if (rtl_x !== null && rtl_y !== null && rtl_angle !== null) {
+                    const xDiff = Math.abs(py_x - rtl_x);
+                    const yDiff = Math.abs(py_y - rtl_y);
+                    const angleDiff = Math.abs(py_angle - rtl_angle);
+
+                    sumXDiff += xDiff;
+                    sumYDiff += yDiff;
+                    sumAngleDiff += angleDiff;
+                    validCount++;
+                }
+            });
+
+            // Update UI
+            document.getElementById('stepNumber').textContent = stepNum;
+            document.getElementById('stepLabel').textContent = `Step ${stepNum}`;
+            document.getElementById('totalSteps').textContent = steps.length;
+            document.getElementById('agentCount').textContent = agents.length;
+
+            if (validCount > 0) {
+                document.getElementById('meanXDiff').textContent = (sumXDiff / validCount).toFixed(2);
+                document.getElementById('meanYDiff').textContent = (sumYDiff / validCount).toFixed(2);
+                document.getElementById('meanAngleDiff').textContent = (sumAngleDiff / validCount).toFixed(2) + '°';
+            }
+        }
+
+        // Initial render
+        render();
+    </script>
+</body>
+</html>
