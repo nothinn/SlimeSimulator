@@ -38,6 +38,7 @@ class RegressionTest:
     generate_trail_map: bool
     generate_comparison_images: bool
     generate_statistics: bool
+    vcd_trace: bool
     output_dir: str
     description: str
 
@@ -90,6 +91,7 @@ class RegressionTestRunner:
                     generate_trail_map=row['generate_trail_map'].lower() == 'true',
                     generate_comparison_images=row['generate_comparison_images'].lower() == 'true',
                     generate_statistics=row['generate_statistics'].lower() == 'true',
+                    vcd_trace=row['vcd_trace'].lower() == 'true',
                     output_dir=row['output_dir'],
                     description=row['description'],
                 )
@@ -288,6 +290,9 @@ class RegressionTestRunner:
                 "--agents", str(test.num_agents),
                 "--steps", str(test.num_steps),
             ]
+            if test.vcd_trace:
+                cmd.append("--trace")
+                self.log(f"  VCD tracing enabled (slime_verilator_full.vcd)")
             # Run from base directory where the script is
             cwd = str(self.base_dir)
         else:

@@ -16,6 +16,7 @@
 #   --force-rebuild             Always force clean rebuild (default: true)
 #   --no-build                  Skip Verilator compilation
 #   --no-rtl                    Skip RTL simulation
+#   --trace                     Enable VCD waveform tracing (slime_verilator_full.vcd)
 #   --help                      Show this help message
 #
 # Examples:
@@ -54,6 +55,7 @@ NC='\033[0m'  # No Color
 DO_BUILD=true
 DO_RTL=true
 VERBOSE=false
+ENABLE_TRACE=false
 
 ##############################################################################
 # Helper Functions
@@ -145,6 +147,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --verbose)
             VERBOSE=true
+            shift
+            ;;
+        --trace)
+            ENABLE_TRACE=true
             shift
             ;;
         --help)
@@ -281,10 +287,16 @@ if [[ "$DO_RTL" == true ]]; then
     cp ../src/cos_lut.hex obj_dir/ 2>/dev/null || true
 
     # Run simulation with output capture
+    TRACE_ARGS=""
+    if [[ "$ENABLE_TRACE" == true ]]; then
+        TRACE_ARGS="--trace"
+        print_info "VCD tracing enabled (slime_verilator_full.vcd)"
+    fi
+
     if [[ "$VERBOSE" == true ]]; then
-        ./obj_dir/slime_verilator_full
+        ./obj_dir/slime_verilator_full $TRACE_ARGS
     else
-        ./obj_dir/slime_verilator_full 2>&1 | grep -E "(Processing|Progress|trail_map)" || true
+        ./obj_dir/slime_verilator_full $TRACE_ARGS 2>&1 | grep -E "(Processing|Progress|trail_map)" || true
     fi
 
     # Verify dumps were created
