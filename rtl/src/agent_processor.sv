@@ -146,8 +146,8 @@ module agent_processor #(
         if (normalized >= TWO_PI_FP) normalized = normalized - TWO_PI_FP;
         // Scale from [0, TWO_PI) to [0, 1024) by multiplying by 1024 and dividing by TWO_PI_FP
         // Formula: idx = (angle * 1024) / (2π in FP) = (angle << 10) / 25737
-        // Add rounding: (numerator + divisor/2) / divisor for nearest integer
-        scaled = ((normalized << 10) + 12868) / 25737;  // 12868 = 25737/2 (rounded)
+        // Use truncation (not rounding) to match Python's int() behavior
+        scaled = (normalized << 10) / 25737;
         return scaled[TRIG_BITS-1:0];
     endfunction
 
