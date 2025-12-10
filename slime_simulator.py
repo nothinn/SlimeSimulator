@@ -920,13 +920,13 @@ class SlimeSimulatorReference:
         new_x = (agent.x + dx) & self.fp.mask
         new_y = (agent.y + dy) & self.fp.mask
 
-        # Convert to pixels and wrap
+        # Update position directly (preserves sub-pixel precision)
+        agent.x = new_x
+        agent.y = new_y
+
+        # Get integer pixel coordinates for trail deposit
         px = int(self.fp.from_fixed(new_x)) % self.width
         py = int(self.fp.from_fixed(new_y)) % self.height
-
-        # Update position (wrap to valid range)
-        agent.x = self.fp.to_fixed(px)
-        agent.y = self.fp.to_fixed(py)
 
         # Deposit trail
         self.trail_map[py, px] = min(255, self.trail_map[py, px] + self.deposit_amount)
