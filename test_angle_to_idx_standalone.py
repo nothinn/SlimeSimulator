@@ -71,22 +71,19 @@ def test_all_agents():
 
 
 def test_formula_equivalence():
-    """Verify Python and RTL formulas are equivalent."""
+    """Verify Python and RTL formulas are equivalent for ALL possible angles."""
 
     print("\n" + "=" * 80)
-    print("FORMULA EQUIVALENCE TEST")
+    print("FORMULA EQUIVALENCE TEST (EXHAUSTIVE)")
     print("=" * 80)
-
-    import random
-    random.seed(42)
 
     TWO_PI_FP = 25737
     TABLE_SIZE = 1024
     mismatches = []
 
-    for i in range(1000):
-        angle_fp = random.randint(0, TWO_PI_FP-1)
+    print(f"Testing all {TWO_PI_FP} angle values (0 to {TWO_PI_FP-1})...")
 
+    for angle_fp in range(TWO_PI_FP):
         python_result = int((angle_fp * TABLE_SIZE) / TWO_PI_FP)
         rtl_result = (angle_fp << 10) // TWO_PI_FP
 
@@ -94,11 +91,13 @@ def test_formula_equivalence():
             mismatches.append((angle_fp, python_result, rtl_result))
 
     if mismatches:
-        print(f"✗ Found {len(mismatches)} mismatches out of 1000 tests:")
-        for angle, py, rtl in mismatches[:10]:
+        print(f"✗ Found {len(mismatches)} mismatches out of {TWO_PI_FP} tests:")
+        for angle, py, rtl in mismatches[:20]:  # Show first 20
             print(f"  angle_fp={angle:5d}: Python={py:3d}, RTL={rtl:3d}, diff={rtl-py}")
+        if len(mismatches) > 20:
+            print(f"  ... and {len(mismatches)-20} more mismatches")
     else:
-        print(f"✓ All 1000 random angles matched perfectly")
+        print(f"✓ All {TWO_PI_FP} angles matched perfectly (bit-exact)")
 
     print("=" * 80)
 

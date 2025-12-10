@@ -112,24 +112,21 @@ async def test_angle_to_idx_edge_cases(dut):
 @cocotb.test()
 async def test_python_vs_rtl_formula(dut):
     """
-    Verify that Python and RTL formulas are mathematically equivalent.
+    Verify that Python and RTL formulas are mathematically equivalent for ALL angles.
     Python: int((angle * 1024) / 25737)
     RTL:    (angle << 10) / 25737
     """
 
     print("\n" + "=" * 80)
-    print("FORMULA EQUIVALENCE TEST")
+    print("FORMULA EQUIVALENCE TEST (EXHAUSTIVE)")
     print("=" * 80)
 
-    # Test 100 random angles
-    import random
-    random.seed(42)
-
+    TWO_PI_FP = 25737
     mismatches = []
 
-    for i in range(100):
-        angle_fp = random.randint(0, 25736)  # 0 to TWO_PI-1
+    print(f"Testing all {TWO_PI_FP} angle values (0 to {TWO_PI_FP-1})...")
 
+    for angle_fp in range(TWO_PI_FP):
         python_result = int((angle_fp * 1024) / 25737)
         rtl_result = (angle_fp << 10) // 25737
 
@@ -137,11 +134,13 @@ async def test_python_vs_rtl_formula(dut):
             mismatches.append((angle_fp, python_result, rtl_result))
 
     if mismatches:
-        print(f"✗ Found {len(mismatches)} mismatches:")
-        for angle, py, rtl in mismatches[:10]:  # Show first 10
-            print(f"  angle_fp={angle}: Python={py}, RTL={rtl}")
+        print(f"✗ Found {len(mismatches)} mismatches out of {TWO_PI_FP} tests:")
+        for angle, py, rtl in mismatches[:20]:  # Show first 20
+            print(f"  angle_fp={angle:5d}: Python={py:3d}, RTL={rtl:3d}, diff={rtl-py}")
+        if len(mismatches) > 20:
+            print(f"  ... and {len(mismatches)-20} more mismatches")
     else:
-        print(f"✓ All 100 random angles matched perfectly")
+        print(f"✓ All {TWO_PI_FP} angles matched perfectly (bit-exact)")
 
     print("=" * 80)
 
