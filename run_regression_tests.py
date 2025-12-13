@@ -280,7 +280,8 @@ class RegressionTestRunner:
                 width=width,
                 height=height,
                 num_agents=test.num_agents,
-                lfsr_seed=0xDEADBEEF
+                lfsr_seed=0xDEADBEEF,
+                trail_bits=18  # Match RTL precision
             )
             sim.init_agents_circle()  # Use circle pattern to match RTL initialization
 

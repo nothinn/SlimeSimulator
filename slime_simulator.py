@@ -800,10 +800,12 @@ class SlimeSimulatorReference:
     """
 
     def __init__(self, width: int = 640, height: int = 480, num_agents: int = 1000,
-                 int_bits: int = 12, frac_bits: int = 12, lfsr_seed: int = 0xDEADBEEF):
+                 int_bits: int = 12, frac_bits: int = 12, lfsr_seed: int = 0xDEADBEEF,
+                 trail_bits: int = 18):
         self.width = width
         self.height = height
         self.num_agents = num_agents
+        self.trail_bits = trail_bits
 
         # Fixed-point arithmetic
         self.fp = FixedPoint(int_bits, frac_bits)
@@ -814,15 +816,28 @@ class SlimeSimulatorReference:
         # Trig lookup table (index-based interface matching RTL)
         self.trig = TrigLUT(self.fp, table_bits=10)
 
-        # Trail map (8-bit intensity per pixel)
-        self.trail_map = np.zeros((height, width), dtype=np.uint8)
+        # Trail map (18-bit intensity per pixel to match RTL)
+        if trail_bits == 18:
+            self.trail_map = np.zeros((height, width), dtype=np.uint32)
+            self.max_trail_value = (1 << 18) - 1  # 262,143
+        elif trail_bits == 8:
+            self.trail_map = np.zeros((height, width), dtype=np.uint8)
+            self.max_trail_value = 255
+        else:
+            raise ValueError(f"Unsupported trail_bits: {trail_bits}. Use 8 or 18.")
 
         # Parameters (fixed-point)
         self.move_speed = self.fp.to_fixed(1.0)
         self.turn_speed = self.fp.to_fixed(0.3)
         self.sensor_angle = self.fp.to_fixed(0.5)  # ~30 degrees
         self.sensor_distance = self.fp.to_fixed(9.0)
-        self.deposit_amount = 5
+        
+        # Scale deposit amount based on trail bit depth
+        if trail_bits == 18:
+            self.deposit_amount = 50  # Match RTL scaling for 18-bit visibility
+        else:
+            self.deposit_amount = 5   # Original 8-bit value
+            
         self.decay_rate = self.fp.to_fixed(0.95)
 
         # Agents
@@ -983,7 +998,8 @@ class SlimeSimulatorReference:
         py = int(self.fp.from_fixed(new_y)) % self.height
 
         # Deposit trail
-        self.trail_map[py, px] = min(255, self.trail_map[py, px] + self.deposit_amount)
+        new_value = self.trail_map[py, px] + self.deposit_amount
+        self.trail_map[py, px] = min(self.max_trail_value, new_value)
 
     def diffuse_and_decay(self):
         """Apply diffusion and decay to trail map."""
@@ -1026,8 +1042,22 @@ class SlimeSimulatorReference:
 
     def dump_trail_map(self, filename: str):
         """Dump trail map to binary file for comparison."""
-        self.trail_map.tofile(filename)
-        print(f"Dumped trail map to {filename} ({self.trail_map.size} bytes)")
+        if self.trail_bits == 18:
+            # For 18-bit trails, store as 3 bytes per pixel to match RTL format
+            with open(filename, 'wb') as f:
+                for pixel_value in self.trail_map.flatten():
+                    # Store as 3 bytes (little-endian, 18 bits)
+                    byte0 = pixel_value & 0xFF
+                    byte1 = (pixel_value >> 8) & 0xFF
+                    byte2 = (pixel_value >> 16) & 0x03
+                    f.write(bytes([byte0, byte1, byte2]))
+            file_size = self.trail_map.size * 3
+        else:
+            # For 8-bit trails, use simple tofile
+            self.trail_map.tofile(filename)
+            file_size = self.trail_map.nbytes
+        
+        print(f"Dumped trail map to {filename} ({file_size} bytes)")
 
     def dump_state(self, filename: str):
         """Dump full state for RTL comparison."""
