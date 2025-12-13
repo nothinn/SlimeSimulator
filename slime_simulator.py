@@ -958,8 +958,11 @@ class SlimeSimulatorReference:
                 agent.angle = (agent.angle - turn_amount) & 0x3FF
         elif sense_left > sense_right:
             agent.angle = (agent.angle + turn_amount) & 0x3FF
-        else:
+        elif sense_right > sense_left:
             agent.angle = (agent.angle - turn_amount) & 0x3FF
+        else:
+            # When all sensors are equal, continue straight (match SlimeSimulator behavior)
+            pass
 
         # Move forward
         sin_val = self.trig.sin(agent.angle)
