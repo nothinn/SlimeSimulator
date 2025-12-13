@@ -87,10 +87,19 @@ def generate_html(csv_file, width=320, height=240, output_file='trajectory_viewe
                         trail_maps[step] = list(values)
                         print(f"[Viewer] Loaded trail map for step {step} (4-byte format)")
                     elif len(raw_data) == expected_size_3byte:
-                        # 3-byte format (24-bit values, treat as 8-bit for now)
-                        values = list(raw_data)
+                        # 3-byte format (18-bit values stored as little-endian 3-byte chunks)
+                        values = []
+                        for i in range(0, len(raw_data), 3):
+                            if i + 3 <= len(raw_data):
+                                # Read 3 bytes as little-endian
+                                byte0 = raw_data[i]      # bits 0-7
+                                byte1 = raw_data[i+1]    # bits 8-15  
+                                byte2 = raw_data[i+2]    # bits 16-17 (only 2 bits)
+                                # Combine into 18-bit value
+                                val = byte0 | (byte1 << 8) | ((byte2 & 0x03) << 16)
+                                values.append(val)
                         trail_maps[step] = values
-                        print(f"[Viewer] Loaded trail map for step {step} (3-byte format)")
+                        print(f"[Viewer] Loaded trail map for step {step} (3-byte 18-bit format, {len(values)} pixels)")
                     else:
                         print(f"[Viewer] Warning: Trail map size mismatch for step {step}: expected {expected_size_4byte} or {expected_size_3byte}, got {len(raw_data)}")
                 except Exception as e:
