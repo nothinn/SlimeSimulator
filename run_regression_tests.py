@@ -286,12 +286,19 @@ class RegressionTestRunner:
 
             self.log(f"  Running {test.num_steps} simulation steps...")
             
-            # Create dump directory first
+            # Create dump directories
             dump_dir = output_path / "python_agent_dumps"
             dump_dir.mkdir(exist_ok=True)
             
+            trail_dumps_dir = output_path / "python_trail_dumps"
+            trail_dumps_dir.mkdir(exist_ok=True)
+            
             # Dump initial state (step 0)
             self._dump_agent_state(sim, 0, dump_dir, test.num_steps)
+            
+            # Dump initial trail map (step 0)
+            trail_file_0 = trail_dumps_dir / f"trail_step_{0:05d}.bin"
+            sim.dump_trail_map(str(trail_file_0))
             
             # Run simulation step by step and dump states
             for step in range(1, test.num_steps + 1):
@@ -302,9 +309,14 @@ class RegressionTestRunner:
                     self.log(f"    Step {step}/{test.num_steps}: Dumping agent state...")
                 
                 self._dump_agent_state(sim, step, dump_dir, test.num_steps)
+                
+                # Dump trail map for each step
+                trail_file = trail_dumps_dir / f"trail_step_{step:05d}.bin"
+                sim.dump_trail_map(str(trail_file))
 
             self.log(f"  ✓ Python reference simulation completed")
             self.log(f"  ✓ Agent dumps created in {dump_dir}")
+            self.log(f"  ✓ Trail dumps created in {trail_dumps_dir}")
 
             return {
                 "agents": test.num_agents,
@@ -313,6 +325,7 @@ class RegressionTestRunner:
                 "status": "completed",
                 "output_dir": str(py_output),
                 "dump_dir": str(dump_dir),
+                "trail_dumps_dir": str(trail_dumps_dir),
                 "simulator_type": "SlimeSimulatorReference"
             }
         except Exception as e:
@@ -653,13 +666,19 @@ class RegressionTestRunner:
 
     def _generate_trail_map(self, test: RegressionTest, output_path: Path,
                            width: int, height: int):
-        """Generate trail map visualization from RTL trail dumps"""
+        """Generate trail map visualization from trail dumps (RTL or Python)"""
         try:
+            # Try RTL trail dumps first
             trail_dumps = sorted((output_path / "rtl_trail_dumps").glob("trail_step_*.bin"))
-
+            
+            # If no RTL trail dumps, try Python trail dumps
             if not trail_dumps:
-                self.log(f"  WARNING: No trail dumps found")
-                return
+                trail_dumps = sorted((output_path / "python_trail_dumps").glob("trail_step_*.bin"))
+                if trail_dumps:
+                    self.log(f"  Using Python trail dumps for visualization")
+                else:
+                    self.log(f"  WARNING: No trail dumps found")
+                    return
 
             # Visualize the final trail map
             final_trail = trail_dumps[-1]
@@ -682,22 +701,36 @@ class RegressionTestRunner:
             self.log(f"  WARNING: Failed to generate trail map: {e}")
 
     def _load_trail_dump(self, filename: Path, width: int, height: int):
-        """Load RTL trail dump from binary file (32-bit values)"""
+        """Load trail dump from binary file (supports RTL 18-bit and Python 8-bit formats)"""
         try:
             with open(filename, 'rb') as f:
                 raw_data = f.read()
 
-            # Trail dumps are stored as 32-bit unsigned integers
-            expected_size = width * height * 4  # 4 bytes per pixel
+            expected_size_18bit = width * height * 3  # 3 bytes per pixel (RTL 18-bit format)
+            expected_size_8bit = width * height       # 1 byte per pixel (Python format)
 
-            if len(raw_data) == expected_size:
-                # Unpack as 32-bit unsigned integers
-                num_pixels = len(raw_data) // 4
-                values = struct.unpack(f'<{num_pixels}I', raw_data)
-                trail_map = np.array(values, dtype=np.uint32).reshape(height, width)
+            if len(raw_data) == expected_size_18bit:
+                # RTL format: 18-bit values stored as 3 bytes (little-endian)
+                num_pixels = len(raw_data) // 3
+                values = np.zeros(num_pixels, dtype=np.uint32)
+                
+                for i in range(num_pixels):
+                    # Read 3 bytes and convert to 32-bit integer
+                    byte0 = raw_data[i*3]
+                    byte1 = raw_data[i*3+1]
+                    byte2 = raw_data[i*3+2]
+                    values[i] = byte0 | (byte1 << 8) | (byte2 << 16)
+                
+                trail_map = values.reshape(height, width)
                 return trail_map
+            elif len(raw_data) == expected_size_8bit:
+                # Python format: 8-bit unsigned integers
+                values = np.frombuffer(raw_data, dtype=np.uint8)
+                trail_map = values.reshape(height, width)
+                # Convert to uint32 for consistency with RTL format
+                return trail_map.astype(np.uint32)
             else:
-                self.log(f"  WARNING: Trail dump size mismatch: expected {expected_size}, got {len(raw_data)}")
+                self.log(f"  WARNING: Trail dump size mismatch: expected {expected_size_18bit} or {expected_size_8bit}, got {len(raw_data)}")
                 return None
 
         except Exception as e:
