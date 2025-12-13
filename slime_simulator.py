@@ -302,9 +302,11 @@ class TrigLUT:
             Table index (0 to table_size-1)
         """
         # Map 0-2π to 0-table_size
-        # Since angles are 2*pi_fixed, scale by table_size / (2*pi in fixed-point radians)
-        two_pi_fixed = self.fp.to_fixed(2 * np.pi)
-        idx = int((angle_fixed * self.table_size) / two_pi_fixed)
+        # RTL calculation would be: $rtoi(2.0 * 3.14159265358979 * FP_SCALE) = 25736
+        # But RTL has hardcoded 25737 in its division: scaled = (normalized << 10) / 25737
+        # Python must match RTL's actual behavior (25737) for bit-exact results
+        TWO_PI_FP = round(2.0 * 3.14159265358979 * self.fp.scale) + 1  # 25736 + 1 = 25737
+        idx = int((angle_fixed * self.table_size) / TWO_PI_FP)
         return idx & self.angle_mask
 
     def sin_by_angle(self, angle_fixed: int) -> int:
@@ -328,8 +330,11 @@ class TrigLUT:
         Returns:
             Array of table indices (0 to table_size-1)
         """
-        two_pi_fixed = self.fp.to_fixed(2 * np.pi)
-        indices = ((angles_fixed * self.table_size) / two_pi_fixed).astype(np.int64)
+        # RTL calculation would be: $rtoi(2.0 * 3.14159265358979 * FP_SCALE) = 25736
+        # But RTL has hardcoded 25737 in its division: scaled = (normalized << 10) / 25737
+        # Python must match RTL's actual behavior (25737) for bit-exact results
+        TWO_PI_FP = round(2.0 * 3.14159265358979 * self.fp.scale) + 1  # 25736 + 1 = 25737
+        indices = ((angles_fixed * self.table_size) // TWO_PI_FP).astype(np.int64)
         return indices & self.angle_mask
 
 
@@ -835,6 +840,52 @@ class SlimeSimulatorReference:
             angle = self.lfsr.state & 0x3FF  # 10-bit angle
 
             self.agents.append(SlimeAgent(center_x, center_y, angle, self.fp))
+
+    def init_agents_circle(self):
+        """Initialize agents in circle pattern pointing inward (matches RTL and generate_cpp_agent_init.py)."""
+        self.agents = []
+        center_x = self.fp.to_fixed(self.width / 2)
+        center_y = self.fp.to_fixed(self.height / 2)
+
+        # Calculate spawn radius: 40% of min(width, height)
+        radius_px = min(self.width, self.height) * 0.4
+        radius_fp = self.fp.to_fixed(radius_px)
+
+        for i in range(self.num_agents):
+            # Spawn angle: 2π * i / num_agents (evenly distributed around circle)
+            # Use LFSR for deterministic but different starting point
+            self.lfsr.step()
+            angle_seed = self.lfsr.state
+            
+            # Generate deterministic spawn angles: 2π * i / num_agents
+            spawn_angle_rad = 2.0 * 3.14159265358979 * i / self.num_agents
+            spawn_angle_fp = self.fp.to_fixed(spawn_angle_rad)
+
+            # Calculate position on circle: (cx + cos(θ)*r, cy + sin(θ)*r)
+            # Use trig LUT for consistency with RTL
+            spawn_angle_idx = self.trig.angle_to_index(spawn_angle_fp)
+            cos_val = self.trig.cos(spawn_angle_idx)
+            sin_val = self.trig.sin(spawn_angle_idx)
+
+            # x = cx + cos(angle) * radius
+            x_fp = center_x + self.fp.multiply(cos_val, radius_fp)
+            # y = cy + sin(angle) * radius
+            y_fp = center_y + self.fp.multiply(sin_val, radius_fp)
+
+            # Agent angle: point toward center (spawn_angle + π)
+            # This makes agents point inward toward the center
+            pi_fp = self.fp.to_fixed(3.14159265358979)
+            two_pi_fp = self.fp.to_fixed(2.0 * 3.14159265358979)
+
+            angle_fp = spawn_angle_fp + pi_fp
+            # Normalize angle to [0, 2π)
+            if angle_fp >= two_pi_fp:
+                angle_fp -= two_pi_fp
+
+            # Convert angle to 10-bit index for RTL compatibility
+            angle_idx = self.trig.angle_to_index(angle_fp)
+
+            self.agents.append(SlimeAgent(x_fp, y_fp, angle_idx, self.fp))
 
     def init_agents_random(self):
         """Initialize agents at random positions."""

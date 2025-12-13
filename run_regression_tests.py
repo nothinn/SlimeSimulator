@@ -196,6 +196,34 @@ class RegressionTestRunner:
 
         return result
 
+    def _dump_agent_state(self, sim, step: int, dump_dir: Path, total_steps: int):
+        """Dump agent state to JSON file for comparison."""
+        agent_data = {
+            'step': step,
+            'agents': []
+        }
+
+        for i, agent in enumerate(sim.agents):
+            # Convert fixed-point to pixels and degrees for comparison
+            x_px = agent.x / 4096.0  # Q12.12 fixed-point
+            y_px = agent.y / 4096.0
+            angle_deg = (agent.angle * 360.0) / 1024.0  # 10-bit angle
+
+            agent_data['agents'].append({
+                'agent_id': i,
+                'x_fp': int(agent.x),
+                'y_fp': int(agent.y),
+                'angle_fp': int(agent.angle),
+                'x_px': round(x_px, 4),
+                'y_px': round(y_px, 4),
+                'angle_deg': round(angle_deg, 6)
+            })
+
+        # Write to file
+        filename = dump_dir / f'agent_state_step_{step:05d}.json'
+        with open(filename, 'w') as f:
+            json.dump(agent_data, f, indent=2)
+
     def _generate_agent_init_data(self, num_agents: int, width: int, height: int):
         """Generate agent initialization data for the specified configuration."""
         self.log(f"  Generating agent initialization data for {num_agents} agents...")
@@ -241,61 +269,42 @@ class RegressionTestRunner:
         py_output = output_path / "python"
         py_output.mkdir(parents=True, exist_ok=True)
 
-        # Build command to run Python simulator
-        cmd = [
-            sys.executable, str(self.base_dir / "slime_simulator.py"),
-            "--agents", str(test.num_agents),
-            "--width", str(width),
-            "--height", str(height),
-            "--steps", str(test.num_steps),
-        ]
-
-        self.log(f"  Command: {' '.join(cmd)}")
+        self.log(f"  Using SlimeSimulatorReference for accurate RTL comparison")
 
         try:
-            # Execute Python simulation
-            result = subprocess.run(
-                cmd,
-                cwd=str(self.base_dir),
-                capture_output=True,
-                text=True,
-                timeout=600  # 10 minute timeout
+            # Import the reference simulator directly for bit-exact RTL matching
+            from slime_simulator import SlimeSimulatorReference
+
+            # Create reference simulator with test parameters
+            sim = SlimeSimulatorReference(
+                width=width,
+                height=height,
+                num_agents=test.num_agents,
+                lfsr_seed=0xDEADBEEF
             )
+            sim.init_agents_circle()  # Use circle pattern to match RTL initialization
 
-            if result.returncode != 0:
-                self.log(f"  ERROR: Python simulation failed")
-                self.log(f"  stderr: {result.stderr}")
-                raise RuntimeError(f"Python simulation failed: {result.stderr}")
-
-            self.log(f"  ✓ Python simulation completed")
-
-            # Dump agent states for comparison (to test-specific directory)
-            self.log(f"  Dumping Python agent states...")
+            self.log(f"  Running {test.num_steps} simulation steps...")
+            
+            # Create dump directory first
             dump_dir = output_path / "python_agent_dumps"
+            dump_dir.mkdir(exist_ok=True)
+            
+            # Dump initial state (step 0)
+            self._dump_agent_state(sim, 0, dump_dir, test.num_steps)
+            
+            # Run simulation step by step and dump states
+            for step in range(1, test.num_steps + 1):
+                sim.step()
+                
+                # Dump state every 10 steps or at final step
+                if step % 10 == 0 or step == test.num_steps:
+                    self.log(f"    Step {step}/{test.num_steps}: Dumping agent state...")
+                
+                self._dump_agent_state(sim, step, dump_dir, test.num_steps)
 
-            # Set environment variable to override output directory
-            env = os.environ.copy()
-            env['PYTHON_AGENT_DUMPS_DIR'] = str(dump_dir)
-
-            dump_cmd = [
-                sys.executable, str(self.base_dir / "dump_python_agent_states.py"),
-                "--steps", str(test.num_steps),
-                "--agents", str(test.num_agents),
-                "--width", str(width),
-                "--height", str(height),
-            ]
-            dump_result = subprocess.run(
-                dump_cmd,
-                cwd=str(self.base_dir),
-                capture_output=True,
-                text=True,
-                timeout=300,  # 5 minute timeout
-                env=env
-            )
-            if dump_result.returncode == 0:
-                self.log(f"  ✓ Agent dumps created in {dump_dir}")
-            else:
-                self.log(f"  WARNING: Failed to dump agent states: {dump_result.stderr}")
+            self.log(f"  ✓ Python reference simulation completed")
+            self.log(f"  ✓ Agent dumps created in {dump_dir}")
 
             return {
                 "agents": test.num_agents,
@@ -304,12 +313,12 @@ class RegressionTestRunner:
                 "status": "completed",
                 "output_dir": str(py_output),
                 "dump_dir": str(dump_dir),
+                "simulator_type": "SlimeSimulatorReference"
             }
-        except subprocess.TimeoutExpired:
-            self.log(f"  ERROR: Python simulation timeout")
-            raise RuntimeError("Python simulation timeout (>10 min)")
         except Exception as e:
             self.log(f"  ERROR: {str(e)}")
+            import traceback
+            self.log(traceback.format_exc())
             raise
 
     def _run_rtl_sim(self, test: RegressionTest, width: int, height: int,
