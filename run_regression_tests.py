@@ -196,6 +196,45 @@ class RegressionTestRunner:
 
         return result
 
+    def _generate_agent_init_data(self, num_agents: int, width: int, height: int):
+        """Generate agent initialization data for the specified configuration."""
+        self.log(f"  Generating agent initialization data for {num_agents} agents...")
+
+        # Build command to generate agent initialization data
+        cmd = [
+            sys.executable, str(self.base_dir / "rtl" / "sim" / "generate_cpp_agent_init.py"),
+            "--num-agents", str(num_agents),
+            "--width", str(width),
+            "--height", str(height),
+            "--output", str(self.base_dir / "rtl" / "sim" / "agent_init_data.h"),
+        ]
+
+        self.log(f"  Command: {' '.join(cmd)}")
+
+        try:
+            # Execute agent initialization data generation
+            result = subprocess.run(
+                cmd,
+                cwd=str(self.base_dir),
+                capture_output=True,
+                text=True,
+                timeout=60  # 1 minute timeout
+            )
+
+            if result.returncode != 0:
+                self.log(f"  ERROR: Agent initialization data generation failed")
+                self.log(f"  stderr: {result.stderr}")
+                raise RuntimeError(f"Agent initialization data generation failed: {result.stderr}")
+
+            self.log(f"  ✓ Agent initialization data generated")
+
+        except subprocess.TimeoutExpired:
+            self.log(f"  ERROR: Agent initialization data generation timeout")
+            raise RuntimeError("Agent initialization data generation timeout (>1 min)")
+        except Exception as e:
+            self.log(f"  ERROR: {str(e)}")
+            raise
+
     def _run_python_sim(self, test: RegressionTest, width: int, height: int,
                        output_path: Path) -> Dict:
         """Run Python simulation with test-specific dump directory"""
@@ -278,6 +317,20 @@ class RegressionTestRunner:
         """Run RTL simulation and move outputs to test-specific directories"""
         rtl_output = output_path / "rtl"
         rtl_output.mkdir(parents=True, exist_ok=True)
+
+        # Clean source RTL dump directories before running simulation
+        # to prevent old dumps from mixing with new ones
+        rtl_agent_dumps_src = self.base_dir / "rtl" / "sim" / "rtl_agent_dumps"
+        if rtl_agent_dumps_src.exists():
+            for old_file in rtl_agent_dumps_src.glob("*.json"):
+                old_file.unlink()
+        rtl_trail_dumps_src = self.base_dir / "rtl" / "sim" / "rtl_trail_dumps"
+        if rtl_trail_dumps_src.exists():
+            for old_file in rtl_trail_dumps_src.glob("*.bin"):
+                old_file.unlink()
+
+        # Generate agent initialization data for this specific test configuration
+        self._generate_agent_init_data(test.num_agents, width, height)
 
         # Check if run_extended_comparison.sh exists (preferred, handles compilation)
         comparison_script = self.base_dir / "run_extended_comparison.sh"
@@ -364,6 +417,9 @@ class RegressionTestRunner:
         rtl_agent_dumps_src = self.base_dir / "rtl" / "sim" / "rtl_agent_dumps"
         rtl_agent_dumps_dst = output_path / "rtl_agent_dumps"
         if rtl_agent_dumps_src.exists():
+            # Clean destination first to avoid mixing old and new dumps
+            for old_file in rtl_agent_dumps_dst.glob("*.json"):
+                old_file.unlink()
             for dump_file in rtl_agent_dumps_src.glob("*.json"):
                 shutil.copy2(dump_file, rtl_agent_dumps_dst)
             self.log(f"  ✓ Copied RTL agent dumps to {rtl_agent_dumps_dst}")
@@ -372,6 +428,9 @@ class RegressionTestRunner:
         rtl_trail_dumps_src = self.base_dir / "rtl" / "sim" / "rtl_trail_dumps"
         rtl_trail_dumps_dst = output_path / "rtl_trail_dumps"
         if rtl_trail_dumps_src.exists():
+            # Clean destination first to avoid mixing old and new dumps
+            for old_file in rtl_trail_dumps_dst.glob("*.bin"):
+                old_file.unlink()
             for dump_file in rtl_trail_dumps_src.glob("*.bin"):
                 shutil.copy2(dump_file, rtl_trail_dumps_dst)
             self.log(f"  ✓ Copied RTL trail dumps to {rtl_trail_dumps_dst}")
@@ -437,10 +496,11 @@ class RegressionTestRunner:
                 rtl_agent = rtl_agents[agent_id] if agent_id < len(rtl_agents) else {}
 
                 # Handle different key names (x/y or x_px/y_px)
-                py_x = py_agent.get("x_px") or py_agent.get("x")
-                py_y = py_agent.get("y_px") or py_agent.get("y")
-                rtl_x = rtl_agent.get("x_px") or rtl_agent.get("x")
-                rtl_y = rtl_agent.get("y_px") or rtl_agent.get("y")
+                # Use proper None checking instead of 'or' to avoid treating 0.0 as falsy
+                py_x = py_agent.get("x_px") if py_agent.get("x_px") is not None else py_agent.get("x")
+                py_y = py_agent.get("y_px") if py_agent.get("y_px") is not None else py_agent.get("y")
+                rtl_x = rtl_agent.get("x_px") if rtl_agent.get("x_px") is not None else rtl_agent.get("x")
+                rtl_y = rtl_agent.get("y_px") if rtl_agent.get("y_px") is not None else rtl_agent.get("y")
 
                 if py_x is not None and py_y is not None and rtl_x is not None and rtl_y is not None:
                     # Calculate distance error
