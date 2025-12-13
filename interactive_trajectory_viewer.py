@@ -37,7 +37,7 @@ def load_trajectory_csv(csv_file):
     return data
 
 
-def generate_html(csv_file, width=320, height=240, output_file='trajectory_viewer.html', trail_map_dir=None):
+def generate_html(csv_file, width=320, height=240, output_file='trajectory_viewer.html'):
     """Generate interactive HTML viewer for trajectories."""
 
     # Load CSV data
@@ -62,52 +62,8 @@ def generate_html(csv_file, width=320, height=240, output_file='trajectory_viewe
     print(f"[Viewer] Steps: {steps}")
     print(f"[Viewer] Agents per step: {num_agents}")
 
-    # Load trail map data if provided
-    trail_maps = {}
-    if trail_map_dir:
-        print(f"[Viewer] Loading trail maps from: {trail_map_dir}")
-        trail_map_dir_path = Path(trail_map_dir)
-        for step in steps:
-            trail_file = trail_map_dir_path / f"trail_step_{step:05d}.bin"
-            if trail_file.exists():
-                try:
-                    # Load binary trail map (32-bit unsigned integers)
-                    with open(trail_file, 'rb') as f:
-                        raw_data = f.read()
-                    
-                    # Try both 4-byte and 3-byte formats
-                    expected_size_4byte = width * height * 4
-                    expected_size_3byte = width * height * 3
-                    
-                    if len(raw_data) == expected_size_4byte:
-                        # 4-byte format (32-bit unsigned integers)
-                        import struct
-                        num_pixels = len(raw_data) // 4
-                        values = struct.unpack(f'<{num_pixels}I', raw_data)
-                        trail_maps[step] = list(values)
-                        print(f"[Viewer] Loaded trail map for step {step} (4-byte format)")
-                    elif len(raw_data) == expected_size_3byte:
-                        # 3-byte format (18-bit values stored as little-endian 3-byte chunks)
-                        values = []
-                        for i in range(0, len(raw_data), 3):
-                            if i + 3 <= len(raw_data):
-                                # Read 3 bytes as little-endian
-                                byte0 = raw_data[i]      # bits 0-7
-                                byte1 = raw_data[i+1]    # bits 8-15  
-                                byte2 = raw_data[i+2]    # bits 16-17 (only 2 bits)
-                                # Combine into 18-bit value
-                                val = byte0 | (byte1 << 8) | ((byte2 & 0x03) << 16)
-                                values.append(val)
-                        trail_maps[step] = values
-                        print(f"[Viewer] Loaded trail map for step {step} (3-byte 18-bit format, {len(values)} pixels)")
-                    else:
-                        print(f"[Viewer] Warning: Trail map size mismatch for step {step}: expected {expected_size_4byte} or {expected_size_3byte}, got {len(raw_data)}")
-                except Exception as e:
-                    print(f"[Viewer] Error loading trail map for step {step}: {e}")
-    
     # Convert data to JSON
     json_data = json.dumps(steps_data, indent=2)
-    trail_maps_json = json.dumps(trail_maps, indent=2)
 
     html_content = f"""<!DOCTYPE html>
 <html>
@@ -350,10 +306,6 @@ def generate_html(csv_file, width=320, height=240, output_file='trajectory_viewe
                         <input type="checkbox" id="showSpawnCircle" checked>
                         <label class="label">Show Spawn Circle</label>
                     </div>
-                    <div class="checkbox-item" onclick="toggleTrailMap()">
-                        <input type="checkbox" id="showTrailMap">
-                        <label class="label">Show Trail Map</label>
-                    </div>
                 </div>
             </div>
 
@@ -399,7 +351,6 @@ def generate_html(csv_file, width=320, height=240, output_file='trajectory_viewe
         const SPAWN_RADIUS = Math.min(WIDTH, HEIGHT) * 0.4;
 
         let trajectoryData = {json_data};
-        let trailMaps = {trail_maps_json};
         let steps = Object.keys(trajectoryData).map(s => parseInt(s)).sort((a, b) => a - b);
         let currentStep = 0;
 
@@ -407,8 +358,6 @@ def generate_html(csv_file, width=320, height=240, output_file='trajectory_viewe
         let showRTL = true;
         let showVectors = true;
         let showSpawnCircle = true;
-        let showTrailMap = false;  // New option for trail map visualization
-        let trailMapOpacity = 0.7;  // Trail map opacity
 
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
@@ -421,7 +370,6 @@ def generate_html(csv_file, width=320, height=240, output_file='trajectory_viewe
             if (e.key.toLowerCase() === 'r') toggleRTL();
             if (e.key.toLowerCase() === 'v') toggleVectors();
             if (e.key.toLowerCase() === 'c') toggleSpawnCircle();
-            if (e.key.toLowerCase() === 't') toggleTrailMap();
         }});
 
         function previousStep() {{
@@ -462,12 +410,6 @@ def generate_html(csv_file, width=320, height=240, output_file='trajectory_viewe
             render();
         }}
 
-        function toggleTrailMap() {{
-            showTrailMap = !showTrailMap;
-            document.getElementById('showTrailMap').checked = showTrailMap;
-            render();
-        }}
-
         function render() {{
             // Clear canvas
             ctx.fillStyle = '#000';
@@ -487,67 +429,6 @@ def generate_html(csv_file, width=320, height=240, output_file='trajectory_viewe
                 ctx.moveTo(0, i * SCALE);
                 ctx.lineTo(WIDTH * SCALE, i * SCALE);
                 ctx.stroke();
-            }}
-
-            // Draw trail map
-            if (showTrailMap) {{
-                const trailData = trailMaps[steps[currentStep]];
-                if (trailData && trailData.length === WIDTH * HEIGHT) {{
-                    // Create a temporary canvas for trail map visualization
-                    const trailCanvas = document.createElement('canvas');
-                    trailCanvas.width = WIDTH * SCALE;
-                    trailCanvas.height = HEIGHT * SCALE;
-                    const trailCtx = trailCanvas.getContext('2d');
-                    
-                    // Find max trail value for normalization
-                    const maxTrail = Math.max(...trailData);
-                    
-                    // Draw trail map using heatmap colors
-                    for (let y = 0; y < HEIGHT; y++) {{
-                        for (let x = 0; x < WIDTH; x++) {{
-                            const trailValue = trailData[y * WIDTH + x];
-                            
-                            if (trailValue > 0) {{
-                                // Heatmap color: black -> blue -> cyan -> green -> yellow -> red
-                                const intensity = Math.min(1.0, trailValue / maxTrail);
-                                let r, g, b;
-                                
-                                if (intensity < 0.2) {{
-                                    // Black to blue
-                                    r = 0;
-                                    g = 0;
-                                    b = Math.floor(255 * (intensity / 0.2));
-                                }} else if (intensity < 0.4) {{
-                                    // Blue to cyan
-                                    r = 0;
-                                    g = Math.floor(255 * ((intensity - 0.2) / 0.2));
-                                    b = 255;
-                                }} else if (intensity < 0.6) {{
-                                    // Cyan to green
-                                    r = 0;
-                                    g = 255;
-                                    b = Math.floor(255 * (1 - (intensity - 0.4) / 0.2));
-                                }} else if (intensity < 0.8) {{
-                                    // Green to yellow
-                                    r = Math.floor(255 * ((intensity - 0.6) / 0.2));
-                                    g = 255;
-                                    b = 0;
-                                }} else {{
-                                    // Yellow to red
-                                    r = 255;
-                                    g = Math.floor(255 * (1 - (intensity - 0.8) / 0.2)));
-                                    b = 0;
-                                }}
-                                
-                                trailCtx.fillStyle = `rgba(${{r}}, ${{g}}, ${{b}}, ${{trailMapOpacity}})`;
-                                trailCtx.fillRect(x * SCALE, y * SCALE, SCALE, SCALE);
-                            }}
-                        }}
-                    }}
-                    
-                    // Draw the trail map on the main canvas
-                    ctx.drawImage(trailCanvas, 0, 0);
-                }}
             }}
 
             // Draw spawn circle
@@ -686,11 +567,10 @@ def main():
     parser.add_argument('--output', default='trajectory_viewer.html', help='Output HTML file')
     parser.add_argument('--width', type=int, default=320, help='Canvas width')
     parser.add_argument('--height', type=int, default=240, help='Canvas height')
-    parser.add_argument('--trail-map-dir', help='Directory with trail map binary files')
 
     args = parser.parse_args()
 
-    html_file = generate_html(args.csv_file, args.width, args.height, args.output, args.trail_map_dir)
+    html_file = generate_html(args.csv_file, args.width, args.height, args.output)
 
     if html_file:
         print(f"\n{'='*70}")
@@ -701,11 +581,9 @@ def main():
         print(f"  Or: xdg-open {html_file}  (Linux)")
         print(f"\nFeatures:")
         print(f"  • Step through trajectories with ← / → buttons or arrow keys")
-        print(f"  • Toggle Python/RTL agents, vectors, and trail map")
+        print(f"  • Toggle Python/RTL agents and vectors")
         print(f"  • View real-time statistics")
-        print(f"  • Keyboard shortcuts: P/R/V/C/T for toggles")
-        if args.trail_map_dir:
-            print(f"  • Trail map visualization enabled")
+        print(f"  • Keyboard shortcuts: P/R/V/C for toggles")
     else:
         print("[Error] Failed to create viewer")
         return 1
